@@ -1,27 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
-const TIPO_ICONS = {
+const TIPO_ICONS: Record<string, string> = {
   sermon: '🎤', ensenanza: '📖', devocional: '🕊️',
   libro: '📚', video: '🎬', estudio: '🔬'
 }
 
-export default function Proyectos({ onSelect }) {
-  const [proyectos, setProyectos] = useState([])
-  const [loading, setLoading] = useState(true)
+interface Proyecto {
+  id: string
+  title: string
+  type: string
+  updated_at: string
+}
+
+interface ProyectosProps {
+  onSelect: (p: Proyecto) => void
+}
+
+export default function Proyectos({ onSelect }: ProyectosProps) {
   const [busqueda, setBusqueda] = useState('')
 
-  useEffect(() => {
-    async function cargar() {
-      const { data } = await supabase
+  const { data: proyectos = [], isLoading: loading } = useQuery({
+    queryKey: ['proyectos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('lw_proyectos')
         .select('*')
         .order('updated_at', { ascending: false })
-      setProyectos(data || [])
-      setLoading(false)
+      if (error) throw error
+      return data as Proyecto[]
     }
-    cargar()
-  }, [])
+  })
 
   const filtrados = proyectos.filter(p =>
     p.title?.toLowerCase().includes(busqueda.toLowerCase())
@@ -39,14 +49,14 @@ export default function Proyectos({ onSelect }) {
         onChange={e => setBusqueda(e.target.value)}
         style={{
           width: '100%', padding: '12px', marginBottom: '16px',
-          background: '#2A2418', border: '1px solid #444', borderRadius: '8px',
+          background: '#1E3D4F', border: '1px solid #444', borderRadius: '8px',
           color: '#F5F1E8', fontSize: '16px', boxSizing: 'border-box'
         }}
       />
       {filtrados.map(p => (
         <div key={p.id} onClick={() => onSelect(p)}
           style={{
-            background: '#2A2418', border: '1px solid #333',
+            background: '#1E3D4F', border: '1px solid #333',
             borderRadius: '8px', padding: '16px', marginBottom: '12px',
             cursor: 'pointer', borderLeft: '3px solid #C9A24A'
           }}>

@@ -22,7 +22,7 @@ export default function App() {
   if (loading) return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#1A1610'
+      justifyContent: 'center', background: '#1A3A4A'
     }}>
       <div style={{ color: '#C9A24A', fontSize: 18 }}>Cargando...</div>
     </div>
@@ -35,10 +35,10 @@ export default function App() {
   )
 
   return (
-    <div style={{ background: '#1A1610', minHeight: '100vh' }}>
+    <div style={{ background: '#1A3A4A', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{
-        padding: '16px', background: '#2A2418',
+        padding: '16px', background: '#1E3D4F',
         borderBottom: '1px solid #C9A24A',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>

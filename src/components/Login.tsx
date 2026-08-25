@@ -20,10 +20,10 @@ export default function Login({ onLogin }) {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#1A1610', padding: '20px'
+      justifyContent: 'center', background: '#1A3A4A', padding: '20px'
     }}>
       <div style={{
-        background: '#2A2418', border: '1px solid #C9A24A',
+        background: '#1E3D4F', border: '1px solid #C9A24A',
         borderRadius: '8px', padding: '40px', width: '100%', maxWidth: '360px'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -37,7 +37,7 @@ export default function Login({ onLogin }) {
             onChange={e => setEmail(e.target.value)}
             style={{
               width: '100%', padding: '12px', marginBottom: '12px',
-              background: '#1A1610', border: '1px solid #444', borderRadius: '6px',
+              background: '#1A3A4A', border: '1px solid #444', borderRadius: '6px',
               color: '#F5F1E8', fontSize: '16px', boxSizing: 'border-box'
             }}
           />
@@ -46,14 +46,14 @@ export default function Login({ onLogin }) {
             onChange={e => setPassword(e.target.value)}
             style={{
               width: '100%', padding: '12px', marginBottom: '16px',
-              background: '#1A1610', border: '1px solid #444', borderRadius: '6px',
+              background: '#1A3A4A', border: '1px solid #444', borderRadius: '6px',
               color: '#F5F1E8', fontSize: '16px', boxSizing: 'border-box'
             }}
           />
           {error && <p style={{ color: '#ff6b6b', fontSize: '13px', marginBottom: '12px' }}>{error}</p>}
           <button type="submit" disabled={loading} style={{
             width: '100%', padding: '14px', background: '#C9A24A',
-            border: 'none', borderRadius: '6px', color: '#1A1610',
+            border: 'none', borderRadius: '6px', color: '#1A3A4A',
             fontWeight: 'bold', fontSize: '16px', cursor: 'pointer'
           }}>
             {loading ? 'Entrando...' : 'Ingresar'}
