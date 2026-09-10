@@ -1,0 +1,815 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Ministerial Palette */
+  --gold: #C9A24A;
+  --gold-light: #E2C275;
+  --gold-dark: #9A7727;
+  --gold-glow: rgba(201, 162, 74, 0.25);
+  --gold-border: rgba(201, 162, 74, 0.4);
+
+  /* Petroleum & Slate Backgrounds */
+  --bg-main: #1A3A4A;
+  --bg-card: #1E3D4F;
+  --bg-surface: #152E3B;
+  --bg-input: #142B37;
+  --border-subtle: rgba(201, 162, 74, 0.18);
+  --border-muted: #2E4B5E;
+
+  /* Typography & Accents */
+  --ivory: #F5F1E8;
+  --text-muted: #9BB0BD;
+  --text-dim: #647B89;
+  --red-rec: #E5484D;
+  --green-saved: #30A46C;
+
+  /* Typography Stacks */
+  --font-cinzel: 'Cinzel', Georgia, serif;
+  --font-crimson: 'Crimson Pro', Georgia, serif;
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--ivory);
+  font-family: var(--font-inter);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-main);
+  position: relative;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A485A;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dark);
+}
+
+::selection {
+  background: rgba(201, 162, 74, 0.35);
+  color: #FFFFFF;
+}
+
+/* Animations */
+@keyframes pulse-gold {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(201, 162, 74, 0.4));
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 24px rgba(201, 162, 74, 0.85));
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes anim-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.anim-up {
+  animation: anim-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-pulse-gold {
+  animation: pulse-gold 2.4s infinite ease-in-out;
+}
+
+.anim-dot-pulse {
+  animation: pulse-dot 1.2s infinite ease-in-out;
+}
+
+.anim-spin {
+  animation: spin 0.85s linear infinite;
+}
+
+.slide-up-sheet {
+  animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Tiptap Editor & ProseMirror */
+.tiptap-container {
+  width: 100%;
+  height: 100%;
+  cursor: text;
+}
+
+.tiptap-container .ProseMirror {
+  outline: none;
+  min-height: 280px;
+  font-family: var(--font-crimson);
+  font-size: 19px;
+  line-height: 1.8;
+  color: var(--ivory);
+  letter-spacing: 0.2px;
+}
+
+.tiptap-container .ProseMirror p {
+  margin-bottom: 1.2em;
+}
+
+.tiptap-container .ProseMirror h1 {
+  font-family: var(--font-cinzel);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  line-height: 1.3;
+}
+
+.tiptap-container .ProseMirror h2 {
+  font-family: var(--font-cinzel);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--gold);
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  line-height: 1.35;
+}
+
+.tiptap-container .ProseMirror h3 {
+  font-family: var(--font-cinzel);
+  font-size: 18px;
+  font-weight: 600;
+  color: #DFBE72;
+  margin-top: 0.9em;
+  margin-bottom: 0.4em;
+  line-height: 1.4;
+}
+
+.tiptap-container .ProseMirror h4 {
+  font-family: var(--font-cinzel);
+  font-size: 16px;
+  font-weight: 600;
+  color: #B4C6D1;
+  margin-top: 0.8em;
+  margin-bottom: 0.3em;
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+}
+
+.tiptap-container .ProseMirror hr {
+  border: none;
+  border-top: 1px solid rgba(201, 162, 74, 0.3);
+  margin: 1.6em 0;
+}
+
+.tiptap-container .ProseMirror u {
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 3px;
+}
+
+.tiptap-container .ProseMirror blockquote {
+  border-left: 3px solid var(--gold);
+  padding-left: 16px;
+  margin: 1.2em 0;
+  font-style: italic;
+  color: #D3E0E8;
+  background: rgba(201, 162, 74, 0.05);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Callouts Ministeriales en el Editor */
+.tiptap-container .ProseMirror blockquote.callout,
+.tiptap-container .ProseMirror blockquote[data-callout-type] {
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 1.4em 0;
+  position: relative;
+  font-style: normal;
+}
+
+/* 📖 Pasaje Bíblico */
+.tiptap-container .ProseMirror blockquote.callout-biblia,
+.tiptap-container .ProseMirror blockquote[data-callout-type="biblia"] {
+  border-left: 4px solid #DFBE72;
+  background: rgba(201, 162, 74, 0.12);
+  color: #F8F3E6;
+}
+.tiptap-container .ProseMirror blockquote.callout-biblia::before,
+.tiptap-container .ProseMirror blockquote[data-callout-type="biblia"]::before {
+  content: '📖 PASAJE BÍBLICO';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #DFBE72;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+/* 💡 Idea / Pensamiento */
+.tiptap-container .ProseMirror blockquote.callout-idea,
+.tiptap-container .ProseMirror blockquote[data-callout-type="idea"] {
+  border-left: 4px solid #38BDF8;
+  background: rgba(56, 189, 248, 0.10);
+  color: #E0F2FE;
+}
+.tiptap-container .ProseMirror blockquote.callout-idea::before,
+.tiptap-container .ProseMirror blockquote[data-callout-type="idea"]::before {
+  content: '💡 IDEA / ILUSTRACIÓN';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #38BDF8;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+/* 🎯 Aplicación Práctica */
+.tiptap-container .ProseMirror blockquote.callout-aplicacion,
+.tiptap-container .ProseMirror blockquote[data-callout-type="aplicacion"] {
+  border-left: 4px solid #34D399;
+  background: rgba(52, 211, 153, 0.10);
+  color: #ECFDF5;
+}
+.tiptap-container .ProseMirror blockquote.callout-aplicacion::before,
+.tiptap-container .ProseMirror blockquote[data-callout-type="aplicacion"]::before {
+  content: '🎯 APLICACIÓN PRÁCTICA';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #34D399;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+/* 📌 Nota Ministerial / Púlpito */
+.tiptap-container .ProseMirror blockquote.callout-nota,
+.tiptap-container .ProseMirror blockquote[data-callout-type="nota"] {
+  border-left: 4px solid #F472B6;
+  background: rgba(244, 114, 182, 0.10);
+  color: #FDF2F8;
+}
+.tiptap-container .ProseMirror blockquote.callout-nota::before,
+.tiptap-container .ProseMirror blockquote[data-callout-type="nota"]::before {
+  content: '📌 NOTA MINISTERIAL';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #F472B6;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+.tiptap-container .ProseMirror ul,
+.tiptap-container .ProseMirror ol {
+  padding-left: 24px;
+  margin-bottom: 1.2em;
+}
+
+.tiptap-container .ProseMirror li {
+  margin-bottom: 0.4em;
+}
+
+.tiptap-container .ProseMirror strong {
+  color: #FFF;
+  font-weight: 600;
+}
+
+.tiptap-container .ProseMirror em {
+  font-style: italic;
+  color: #E8E2D5;
+}
+
+/* Tiptap Placeholder */
+.tiptap-container .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-dim);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+  font-family: var(--font-crimson);
+  font-size: 19px;
+}
+
+/* ========================================================
+   TEMAS DE LECTURA Y ESCRITURA (NOCTURNO, DIURNO, SEPIA)
+   ======================================================== */
+
+/* MODO DIURNO / DÍA (Luz Solar / Lectura Clara) */
+.tiptap-container.tiptap-theme-diurno {
+  background-color: #FAF8F5 !important;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror {
+  color: #1A242B;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror h1 {
+  color: #8C6819;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror h2 {
+  color: #1E3D4F;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror h3 {
+  color: #8C6819;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror h4 {
+  color: #385161;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror hr {
+  border-top-color: rgba(140, 104, 25, 0.25);
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote {
+  border-left: 3px solid #C9A24A;
+  color: #2D3E4C;
+  background: #F0ECE1;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-biblia,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="biblia"] {
+  border-left-color: #B3861B;
+  background: #F8F3E8;
+  color: #3A2B14;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-biblia::before,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="biblia"]::before {
+  color: #8C6819;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-idea,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="idea"] {
+  border-left-color: #0284C7;
+  background: #F0F9FF;
+  color: #0C4A6E;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-idea::before,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="idea"]::before {
+  color: #0284C7;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-aplicacion,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="aplicacion"] {
+  border-left-color: #059669;
+  background: #F0FDF4;
+  color: #064E3B;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-aplicacion::before,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="aplicacion"]::before {
+  color: #059669;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-nota,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="nota"] {
+  border-left-color: #DB2777;
+  background: #FDF2F8;
+  color: #831843;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote.callout-nota::before,
+.tiptap-container.tiptap-theme-diurno .ProseMirror blockquote[data-callout-type="nota"]::before {
+  color: #DB2777;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror strong {
+  color: #0F171C;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror em {
+  color: #384853;
+}
+.tiptap-container.tiptap-theme-diurno .ProseMirror p.is-editor-empty:first-child::before {
+  color: #8E9EA7;
+}
+
+/* MODO SEPIA / PERGAMINO (Clásico / Manuscrito Cálido) */
+.tiptap-container.tiptap-theme-sepia {
+  background-color: #F4EBD9 !important;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror {
+  color: #2C2218;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror h1 {
+  color: #7E5718;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror h2 {
+  color: #4A3319;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror h3 {
+  color: #6D4C1B;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror h4 {
+  color: #4A3521;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror hr {
+  border-top-color: rgba(126, 87, 24, 0.25);
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote {
+  border-left: 3px solid #B88B2A;
+  color: #4A3A28;
+  background: #EADFC8;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-biblia,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="biblia"] {
+  border-left-color: #9C7221;
+  background: #EFE4CD;
+  color: #38250E;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-biblia::before,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="biblia"]::before {
+  color: #7E5718;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-idea,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="idea"] {
+  border-left-color: #0369A1;
+  background: #E6F1F7;
+  color: #082F49;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-idea::before,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="idea"]::before {
+  color: #0369A1;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-aplicacion,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="aplicacion"] {
+  border-left-color: #047857;
+  background: #E7F3EC;
+  color: #064E3B;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-aplicacion::before,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="aplicacion"]::before {
+  color: #047857;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-nota,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="nota"] {
+  border-left-color: #BE185D;
+  background: #F6E6EE;
+  color: #701A75;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote.callout-nota::before,
+.tiptap-container.tiptap-theme-sepia .ProseMirror blockquote[data-callout-type="nota"]::before {
+  color: #BE185D;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror strong {
+  color: #181109;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror em {
+  color: #57442F;
+}
+.tiptap-container.tiptap-theme-sepia .ProseMirror p.is-editor-empty:first-child::before {
+  color: #9C886B;
+}
+
+/* MODO NOCTURNO / NOCHE (Petróleo Ministerial / Púlpito) */
+.tiptap-container.tiptap-theme-nocturno {
+  background-color: #1A3A4A !important;
+}
+.tiptap-container.tiptap-theme-nocturno .ProseMirror {
+  color: var(--ivory);
+}
+
+/* Estilos de contenido HTML en el Modo Lectura */
+.contenido-lectura p {
+  margin-bottom: 1.2em;
+}
+.contenido-lectura h1 {
+  font-family: var(--font-cinzel);
+  font-size: 1.4em;
+  font-weight: 700;
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  line-height: 1.3;
+}
+.contenido-lectura h2 {
+  font-family: var(--font-cinzel);
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  line-height: 1.35;
+}
+.contenido-lectura h3 {
+  font-family: var(--font-cinzel);
+  font-size: 1.15em;
+  font-weight: 600;
+  margin-top: 0.9em;
+  margin-bottom: 0.4em;
+  line-height: 1.4;
+  color: #DFBE72;
+}
+.contenido-lectura.tema-diurno h3 {
+  color: #8C6819;
+}
+.contenido-lectura.tema-sepia h3 {
+  color: #6D4C1B;
+}
+.contenido-lectura h4 {
+  font-family: var(--font-cinzel);
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.3em;
+  line-height: 1.4;
+  color: #9BB0BD;
+}
+.contenido-lectura.tema-diurno h4 {
+  color: #385161;
+}
+.contenido-lectura.tema-sepia h4 {
+  color: #4A3521;
+}
+.contenido-lectura hr {
+  border: none;
+  border-top: 1px solid rgba(201, 162, 74, 0.3);
+  margin: 1.6em 0;
+}
+.contenido-lectura.tema-diurno hr {
+  border-top-color: rgba(140, 104, 25, 0.25);
+}
+.contenido-lectura.tema-sepia hr {
+  border-top-color: rgba(126, 87, 24, 0.25);
+}
+.contenido-lectura u {
+  text-decoration: underline;
+  text-decoration-color: #C9A24A;
+  text-underline-offset: 3px;
+}
+.contenido-lectura blockquote {
+  border-left: 3px solid #C9A24A;
+  padding-left: 16px;
+  margin: 1.2em 0;
+  font-style: italic;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-radius: 0 6px 6px 0;
+}
+.contenido-lectura blockquote.callout,
+.contenido-lectura blockquote[data-callout-type] {
+  padding: 12px 18px;
+  border-radius: 0 8px 8px 0;
+  margin: 1.4em 0;
+  font-style: normal;
+}
+/* Callouts en Modo Lectura */
+.contenido-lectura blockquote.callout-biblia,
+.contenido-lectura blockquote[data-callout-type="biblia"] {
+  border-left: 4px solid #DFBE72;
+}
+.contenido-lectura blockquote.callout-biblia::before,
+.contenido-lectura blockquote[data-callout-type="biblia"]::before {
+  content: '📖 PASAJE BÍBLICO';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #DFBE72;
+  margin-bottom: 6px;
+}
+.contenido-lectura blockquote.callout-idea,
+.contenido-lectura blockquote[data-callout-type="idea"] {
+  border-left: 4px solid #38BDF8;
+}
+.contenido-lectura blockquote.callout-idea::before,
+.contenido-lectura blockquote[data-callout-type="idea"]::before {
+  content: '💡 IDEA / ILUSTRACIÓN';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #38BDF8;
+  margin-bottom: 6px;
+}
+.contenido-lectura blockquote.callout-aplicacion,
+.contenido-lectura blockquote[data-callout-type="aplicacion"] {
+  border-left: 4px solid #34D399;
+}
+.contenido-lectura blockquote.callout-aplicacion::before,
+.contenido-lectura blockquote[data-callout-type="aplicacion"]::before {
+  content: '🎯 APLICACIÓN PRÁCTICA';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #34D399;
+  margin-bottom: 6px;
+}
+.contenido-lectura blockquote.callout-nota,
+.contenido-lectura blockquote[data-callout-type="nota"] {
+  border-left: 4px solid #F472B6;
+}
+.contenido-lectura blockquote.callout-nota::before,
+.contenido-lectura blockquote[data-callout-type="nota"]::before {
+  content: '📌 NOTA MINISTERIAL';
+  display: block;
+  font-family: var(--font-cinzel), serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #F472B6;
+  margin-bottom: 6px;
+}
+.contenido-lectura ul,
+.contenido-lectura ol {
+  padding-left: 24px;
+  margin-bottom: 1.2em;
+}
+.contenido-lectura li {
+  margin-bottom: 0.4em;
+}
+.contenido-lectura.tema-nocturno blockquote {
+  background: rgba(201, 162, 74, 0.08);
+  color: #D3E0E8;
+}
+.contenido-lectura.tema-nocturno blockquote.callout-biblia,
+.contenido-lectura.tema-nocturno blockquote[data-callout-type="biblia"] {
+  background: rgba(201, 162, 74, 0.14);
+  color: #F8F3E6;
+}
+.contenido-lectura.tema-nocturno blockquote.callout-idea,
+.contenido-lectura.tema-nocturno blockquote[data-callout-type="idea"] {
+  background: rgba(56, 189, 248, 0.12);
+  color: #E0F2FE;
+}
+.contenido-lectura.tema-nocturno blockquote.callout-aplicacion,
+.contenido-lectura.tema-nocturno blockquote[data-callout-type="aplicacion"] {
+  background: rgba(52, 211, 153, 0.12);
+  color: #ECFDF5;
+}
+.contenido-lectura.tema-nocturno blockquote.callout-nota,
+.contenido-lectura.tema-nocturno blockquote[data-callout-type="nota"] {
+  background: rgba(244, 114, 182, 0.12);
+  color: #FDF2F8;
+}
+
+.contenido-lectura.tema-diurno blockquote {
+  background: #F0ECE1;
+  color: #2D3E4C;
+}
+.contenido-lectura.tema-diurno blockquote.callout-biblia,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="biblia"] {
+  border-left-color: #B3861B;
+  background: #F8F3E8;
+  color: #3A2B14;
+}
+.contenido-lectura.tema-diurno blockquote.callout-biblia::before,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="biblia"]::before {
+  color: #8C6819;
+}
+.contenido-lectura.tema-diurno blockquote.callout-idea,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="idea"] {
+  border-left-color: #0284C7;
+  background: #F0F9FF;
+  color: #0C4A6E;
+}
+.contenido-lectura.tema-diurno blockquote.callout-idea::before,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="idea"]::before {
+  color: #0284C7;
+}
+.contenido-lectura.tema-diurno blockquote.callout-aplicacion,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="aplicacion"] {
+  border-left-color: #059669;
+  background: #F0FDF4;
+  color: #064E3B;
+}
+.contenido-lectura.tema-diurno blockquote.callout-aplicacion::before,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="aplicacion"]::before {
+  color: #059669;
+}
+.contenido-lectura.tema-diurno blockquote.callout-nota,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="nota"] {
+  border-left-color: #DB2777;
+  background: #FDF2F8;
+  color: #831843;
+}
+.contenido-lectura.tema-diurno blockquote.callout-nota::before,
+.contenido-lectura.tema-diurno blockquote[data-callout-type="nota"]::before {
+  color: #DB2777;
+}
+
+.contenido-lectura.tema-sepia blockquote {
+  background: #EADFC8;
+  color: #4A3A28;
+}
+.contenido-lectura.tema-sepia blockquote.callout-biblia,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="biblia"] {
+  border-left-color: #9C7221;
+  background: #EFE4CD;
+  color: #38250E;
+}
+.contenido-lectura.tema-sepia blockquote.callout-biblia::before,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="biblia"]::before {
+  color: #7E5718;
+}
+.contenido-lectura.tema-sepia blockquote.callout-idea,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="idea"] {
+  border-left-color: #0369A1;
+  background: #E6F1F7;
+  color: #082F49;
+}
+.contenido-lectura.tema-sepia blockquote.callout-idea::before,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="idea"]::before {
+  color: #0369A1;
+}
+.contenido-lectura.tema-sepia blockquote.callout-aplicacion,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="aplicacion"] {
+  border-left-color: #047857;
+  background: #E7F3EC;
+  color: #064E3B;
+}
+.contenido-lectura.tema-sepia blockquote.callout-aplicacion::before,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="aplicacion"]::before {
+  color: #047857;
+}
+.contenido-lectura.tema-sepia blockquote.callout-nota,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="nota"] {
+  border-left-color: #BE185D;
+  background: #F6E6EE;
+  color: #701A75;
+}
+.contenido-lectura.tema-sepia blockquote.callout-nota::before,
+.contenido-lectura.tema-sepia blockquote[data-callout-type="nota"]::before {
+  color: #BE185D;
+}
+
+/* Form inputs & buttons */
+input, select, textarea, button {
+  font-family: inherit;
+}
+
