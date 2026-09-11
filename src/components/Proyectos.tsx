@@ -43,8 +43,6 @@ const TIPO_CONFIG: Record<string, { icon: string; label: string; desc: string }>
   libro: { icon: '📚', label: 'Libro', desc: 'Capítulos y tratados' },
   video: { icon: '🎬', label: 'Video', desc: 'Guiones y transmisiones' },
   estudio: { icon: '🔬', label: 'Estudio', desc: 'Investigación bíblica profunda' },
-  revelacion: { icon: '✨', label: 'Revelación', desc: 'Palabra profética y visión' },
-  apostolico: { icon: '👑', label: 'Apostólico', desc: 'Directrices y gobierno' }
 }
 
 function formatFechaRelativa(dateStr: string): string {
