@@ -10,6 +10,27 @@
  *   - "extended" → sesiones encadenadas sin límite de tiempo (botón Extendido)
  */
 
+// La Web Speech API no está incluida en los tipos DOM de TypeScript
+interface WebSpeechRecognition extends EventTarget {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  onresult: ((event: any) => void) | null
+  onerror: ((event: any) => void) | null
+  onend: (() => void) | null
+  start(): void
+  stop(): void
+  abort(): void
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => WebSpeechRecognition
+    webkitSpeechRecognition?: new () => WebSpeechRecognition
+  }
+}
+
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
@@ -114,11 +135,11 @@ export function useSpeechRecognition(
 
   // ── Implementación web (Web Speech API) ────────────────────────────────────
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<WebSpeechRecognition | null>(null)
 
   const startWeb = useCallback(() => {
     const SpeechRecognitionAPI =
-      window.SpeechRecognition || (window as any).webkitSpeechRecognition
+      window.SpeechRecognition || window.webkitSpeechRecognition
 
     if (!SpeechRecognitionAPI) {
       updateStatus('error')

@@ -62,7 +62,6 @@ export const ExportarPDFModal: React.FC<ExportarPDFModalProps> = ({
           borderRadius: '16px',
           width: '100%',
           maxWidth: '560px',
-          maxHeight: '90vh',
           maxHeight: '90dvh',
           display: 'flex',
           flexDirection: 'column',

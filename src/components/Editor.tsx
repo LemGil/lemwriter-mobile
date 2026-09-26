@@ -734,7 +734,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     const actualizado = {
       ...proyectoActual,
       title: tituloLimpio,
-      type: nuevoTipoProyecto
+      type: nuevoTipoProyecto,
+      updated_at: new Date().toISOString()
     }
 
     // Actualizar de inmediato en memoria y caché local
@@ -783,7 +784,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
 
     const actualizado = {
       ...proyectoActual,
-      title: tituloLimpio
+      title: tituloLimpio,
+      updated_at: new Date().toISOString()
     }
 
     setProyectoActual(actualizado)
@@ -914,7 +916,6 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100vh',
       height: '100dvh',
       background: 'linear-gradient(180deg, #1A3A4A 0%, #122834 100%)',
       position: 'relative',

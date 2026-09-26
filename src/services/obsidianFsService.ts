@@ -19,6 +19,11 @@ const IDB_NAME   = 'lemwriter-mobile-fs';
 const IDB_STORE  = 'fs-handles';
 const HANDLE_KEY = 'obsidian-root';
 
+// queryPermission() aún no está en los tipos DOM de TypeScript
+interface FileSystemDirectoryHandleConPermisos extends FileSystemDirectoryHandle {
+  queryPermission(descriptor: { mode: 'readwrite' }): Promise<PermissionState>;
+}
+
 // ─── IndexedDB: persistencia del handle entre sesiones ────────────────────────
 
 function openDb(): Promise<IDBDatabase> {
@@ -82,7 +87,7 @@ export async function writeObsidianFile(
     }
 
     // Verificar que el permiso sigue vigente (puede haberse revocado entre sesiones)
-    const perm = await root.queryPermission({ mode: 'readwrite' });
+    const perm = await (root as FileSystemDirectoryHandleConPermisos).queryPermission({ mode: 'readwrite' });
     if (perm !== 'granted') {
       console.warn('[Obsidian FS] Permiso revocado o expirado — re-autoriza en Configuración');
       return false;
@@ -133,7 +138,7 @@ export async function getVaultStatus(): Promise<'connected' | 'disconnected' | '
   try {
     const root = await loadRootHandle();
     if (!root) return 'disconnected';
-    const perm = await root.queryPermission({ mode: 'readwrite' });
+    const perm = await (root as FileSystemDirectoryHandleConPermisos).queryPermission({ mode: 'readwrite' });
     return perm === 'granted' ? 'connected' : 'disconnected';
   } catch {
     return 'disconnected';

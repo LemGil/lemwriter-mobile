@@ -6,7 +6,7 @@ import { resolveConflict } from '../lib/offlineStore'
 interface Conflicto {
   id: string
   projectId: string
-  projectTitle: string
+  projectTitle?: string
   sectionId: string
   sectionTitle: string
   localContent: string

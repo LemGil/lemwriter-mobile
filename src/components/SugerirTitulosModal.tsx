@@ -522,7 +522,7 @@ export const SugerirTitulosModal: React.FC<SugerirTitulosModalProps> = ({
                 {error}
               </p>
               <button
-                onClick={generarTitulos}
+                onClick={() => generarTitulos()}
                 style={{
                   background: '#C9A24A',
                   color: '#122631',

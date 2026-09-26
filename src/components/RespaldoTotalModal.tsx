@@ -230,7 +230,6 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
           borderRadius: '16px',
           width: '100%',
           maxWidth: '620px',
-          maxHeight: '92vh',
           maxHeight: '92dvh',
           display: 'flex',
           flexDirection: 'column',

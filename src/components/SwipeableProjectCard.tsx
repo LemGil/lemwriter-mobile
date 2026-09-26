@@ -179,10 +179,6 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
     if (isDraggingRef.current) finishSwipe()
   }
 
-  const handleMouseLeave = () => {
-    if (isDraggingRef.current) finishSwipe()
-  }
-
   const handleCardClick = (e: React.MouseEvent) => {
     // Si estaba abierto y se hace click en el cuerpo de la tarjeta, sólo cerrarla
     if (isOpen) {
@@ -286,7 +282,6 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
         className="anim-up"
         style={{
           position: 'relative',
@@ -314,6 +309,7 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
           }
         }}
         onMouseLeave={(e) => {
+          if (isDraggingRef.current) finishSwipe()
           if (!isOpen && !isSwiping) {
             e.currentTarget.style.borderColor = 'rgba(201, 162, 74, 0.22)'
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)'
