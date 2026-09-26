@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { migrateFromLocalStorageToIndexedDB } from '../indexedDbStore'
-import * as idb from '../indexedDbStore'
+import { migrateFromLocalStorageToIndexedDB } from '../lib/indexedDbStore'
+import * as idb from '../lib/indexedDbStore'
 import { resetAllMocks } from '../../test/vitest.setup'
 
-vi.mock('../indexedDbStore', async (importOriginal) => {
-  const actual = await importOriginal()
+vi.mock('../lib/indexedDbStore', async (importOriginal) => {
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     idbGetAllProjects: vi.fn().mockResolvedValue([]),
@@ -40,7 +40,7 @@ describe('IndexedDB Migration', () => {
     localStorage.setItem('lw_offline_proyectos', JSON.stringify(projects))
     
     // Mock sections for each project
-    const { idbGetSections } = await import('../indexedDbStore')
+    const { idbGetSections } = await import('../lib/indexedDbStore')
     vi.mocked(idbGetSections)
       .mockResolvedValueOnce([{ id: 'sec-1', project_id: 'proj-1', title: 'Intro', content: '', order_index: 0 }])
       .mockResolvedValueOnce([{ id: 'sec-2', project_id: 'proj-2', title: 'Intro', content: '', order_index: 0 }])
@@ -69,13 +69,13 @@ describe('IndexedDB Migration', () => {
   it('sets migration flag in meta', async () => {
     await migrateFromLocalStorageToIndexedDB()
     
-    const { idbSetMeta } = await import('../indexedDbStore')
+    const { idbSetMeta } = await import('../lib/indexedDbStore')
     expect(idb.idbSetMeta).toHaveBeenCalledWith('migrado_desde_localstorage_v1', true)
     expect(idb.idbSetMeta).toHaveBeenCalledWith('fecha_migracion_idb', expect.any(String))
   })
 
   it('skips migration if already done', async () => {
-    const { idbGetMeta } = await import('../indexedDbStore')
+    const { idbGetMeta } = await import('../lib/indexedDbStore')
     vi.mocked(idbGetMeta).mockResolvedValueOnce(true) // Already migrated
     
     const result = await migrateFromLocalStorageToIndexedDB()
@@ -111,7 +111,7 @@ describe('IndexedDB Migration', () => {
     expect(result1.migrated).toBe(true)
     
     // Second run (meta now returns true)
-    const { idbGetMeta } = await import('../indexedDbStore')
+    const { idbGetMeta } = await import('../lib/indexedDbStore')
     vi.mocked(idbGetMeta).mockResolvedValueOnce(true)
     
     const result2 = await migrateFromLocalStorageToIndexedDB()

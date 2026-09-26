@@ -172,8 +172,8 @@ export const flushPromises = async () => {
     await Promise.resolve()
   }
 }
-export const triggerOnline = () => { navigator.onLine = true; window.dispatchEvent(new Event('online')) }
-export const triggerOffline = () => { navigator.onLine = false; window.dispatchEvent(new Event('offline')) }
+export const triggerOnline = () => { (navigator as { onLine: boolean }).onLine = true; window.dispatchEvent(new Event('online')) }
+export const triggerOffline = () => { (navigator as { onLine: boolean }).onLine = false; window.dispatchEvent(new Event('offline')) }
 export const advanceTimers = (ms: number) => vi.advanceTimersByTime(ms)
 
 export const resetAllMocks = () => {

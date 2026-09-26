@@ -3,11 +3,12 @@ import {
   getPendingConflicts,
   saveConflict,
   removeConflict,
-  resolveConflict
+  resolveConflict,
+  saveOfflineSectionContent
 } from '../offlineStore'
 import * as idb from '../indexedDbStore'
 import * as supabaseModule from '../supabase'
-import { resetAllMocks, createConflict, createRemoteNewerVersion } from '../../test/vitest.setup'
+import { resetAllMocks, createConflict, createRemoteNewerVersion } from '../../../test/vitest.setup'
 
 vi.mock('../indexedDbStore', () => ({
   idbGetConflicts: vi.fn().mockResolvedValue([]),
@@ -16,7 +17,7 @@ vi.mock('../indexedDbStore', () => ({
 }))
 
 vi.mock('../offlineStore', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     getOfflineSections: vi.fn().mockReturnValue([]),
@@ -156,7 +157,7 @@ describe('offlineStore - Conflicts', () => {
       remoteUpdatedAt: new Date(Date.now() + 60000).toISOString()
     })
 
-    beforeEach(() => {
+    beforeEach(async () => {
       localStorage.setItem('lw_offline_conflicts', JSON.stringify([baseConflict]))
       // Mock offlineStore functions used by resolveConflict
       const { getOfflineSections, saveOfflineSections, saveOfflineSectionContent, saveOrUpdateOfflineProject, getOfflineProjects, addPendingSyncAction } = await import('../offlineStore')

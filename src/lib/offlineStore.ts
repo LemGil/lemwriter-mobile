@@ -85,7 +85,7 @@ const STORAGE_KEYS = {
 // Caché en Memoria para Acceso Síncrono de Cero Latencia
 // -------------------------------------------------------------
 let memoryProjectsCache: OfflineProyecto[] | null = null
-const memorySectionsCache: Map<string, OfflineSeccion[]> = new Map()
+export const memorySectionsCache: Map<string, OfflineSeccion[]> = new Map()
 let memorySyncQueueCache: PendingSyncAction[] | null = null
 let memoryConflictsCache: EditConflict[] | null = null
 let idbInitialized = false
@@ -273,7 +273,7 @@ export function saveOfflineSectionContent(projectId: string, sectionId: string, 
   }
 }
 
-export function saveOrUpdateOfflineSection(projectId: string, section: OfflineSeccion): void {
+export function saveOrUpdateOfflineSection(projectId: string, section: Partial<OfflineSeccion> & { id: string }): void {
   const sections = getOfflineSections(projectId)
   const idx = sections.findIndex((s) => s.id === section.id)
   let updated: OfflineSeccion[]
@@ -281,7 +281,14 @@ export function saveOrUpdateOfflineSection(projectId: string, section: OfflineSe
     updated = [...sections]
     updated[idx] = { ...updated[idx], ...section }
   } else {
-    updated = [...sections, section]
+    // Sección nueva: si viene parcial, completar con valores por defecto
+    updated = [...sections, {
+      project_id: projectId,
+      title: '',
+      content: '',
+      order_index: sections.length,
+      ...section
+    }]
   }
   saveOfflineSections(projectId, updated)
 }

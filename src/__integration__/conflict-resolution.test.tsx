@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { resetAllMocks, createConflict, flushPromises } from '../../test/vitest.setup'
 
 vi.mock('../lib/offlineStore', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     resolveConflict: vi.fn().mockResolvedValue({ success: true, newSectionId: undefined })

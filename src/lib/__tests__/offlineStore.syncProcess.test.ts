@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { processOfflineSyncQueue, getPendingSyncQueue, addPendingSyncAction } from '../offlineStore'
 import * as supabaseModule from '../supabase'
-import { resetAllMocks, triggerOnline, triggerOffline, createRemoteNewerVersion } from '../../test/vitest.setup'
+import { resetAllMocks, triggerOnline, triggerOffline, createRemoteNewerVersion } from '../../../test/vitest.setup'
 
 vi.mock('../supabase', () => ({
   supabase: {
@@ -23,7 +23,7 @@ vi.mock('../supabase', () => ({
 
 // Mock offlineStore functions used during sync
 vi.mock('../offlineStore', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     getOfflineProjects: vi.fn().mockReturnValue([]),
@@ -48,7 +48,7 @@ describe('offlineStore - Sync Process', () => {
     triggerOnline()
   })
 
-  const mockSupabase = supabaseModule.supabase
+  const mockSupabase = supabaseModule.supabase as any
 
   describe('processOfflineSyncQueue', () => {
     it('returns early if already syncing', async () => {
@@ -76,7 +76,8 @@ describe('offlineStore - Sync Process', () => {
         id: 'local_proj_123', 
         title: 'New Project', 
         type: 'sermon', 
-        user_id: 'user-123' 
+        user_id: 'user-123',
+        updated_at: new Date().toISOString()
       }
       addPendingSyncAction('CREATE_PROJECT', newProject)
       

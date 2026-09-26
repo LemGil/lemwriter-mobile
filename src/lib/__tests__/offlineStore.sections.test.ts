@@ -7,7 +7,7 @@ import {
   deleteOfflineSection
 } from '../offlineStore'
 import * as idb from '../indexedDbStore'
-import { resetAllMocks } from '../../test/vitest.setup'
+import { resetAllMocks } from '../../../test/vitest.setup'
 
 vi.mock('../indexedDbStore', () => ({
   idbGetSections: vi.fn().mockResolvedValue([]),

@@ -4,7 +4,7 @@ import {
   isOfflineGuestSession,
   setOfflineGuestSession
 } from '../offlineStore'
-import { resetAllMocks } from '../../test/vitest.setup'
+import { resetAllMocks } from '../../../test/vitest.setup'
 
 describe('offlineStore - Utils', () => {
   beforeEach(() => {

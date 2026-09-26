@@ -26,7 +26,7 @@ vi.mock('../lib/supabase', () => {
   }
 })
 vi.mock('../lib/offlineStore', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     getOfflineSections: vi.fn().mockReturnValue([

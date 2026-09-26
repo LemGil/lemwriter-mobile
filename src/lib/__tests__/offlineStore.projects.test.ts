@@ -7,7 +7,7 @@ import {
   generateLocalId
 } from '../offlineStore'
 import * as idb from '../indexedDbStore'
-import { waitForAutoSave, flushPromises, resetAllMocks, triggerOffline, triggerOnline } from '../../test/vitest.setup'
+import { waitForAutoSave, flushPromises, resetAllMocks, triggerOffline, triggerOnline } from '../../../test/vitest.setup'
 
 // Mock IndexedDB functions
 vi.mock('../indexedDbStore', () => ({
