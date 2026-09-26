@@ -785,6 +785,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     const actualizado = {
       ...proyectoActual,
       title: tituloLimpio,
+      type: proyectoActual.type || 'sermon',
       updated_at: new Date().toISOString()
     }
 
