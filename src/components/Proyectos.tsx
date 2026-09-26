@@ -17,16 +17,7 @@ import {
 } from '../lib/offlineStore'
 import { SwipeableProjectCard } from './SwipeableProjectCard'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
-
-export interface Proyecto {
-  id: string
-  title: string
-  type: string
-  updated_at: string
-  created_at?: string
-  user_id?: string
-  _isOfflineOnly?: boolean
-}
+import type { Proyecto } from '../types'
 
 interface ProyectosProps {
   onSelect: (p: Proyecto) => void

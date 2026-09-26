@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Proyecto } from './Proyectos'
+import type { Proyecto } from '../types'
 
 interface SwipeableProjectCardProps {
   proyecto: Proyecto

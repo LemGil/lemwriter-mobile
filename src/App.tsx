@@ -7,16 +7,7 @@ import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAInstallButton } from './components/PWAInstallButton'
 import { RespaldoTotalModal } from './components/RespaldoTotalModal'
 import { isOfflineGuestSession, setOfflineGuestSession } from './lib/offlineStore'
-
-export interface Proyecto {
-  id: string
-  title: string
-  type: string
-  updated_at: string
-  created_at?: string
-  user_id?: string
-  _isOfflineOnly?: boolean
-}
+import type { Proyecto } from './types'
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
