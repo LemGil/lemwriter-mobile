@@ -13,6 +13,8 @@
 //     videos/
 //     libros/
 
+import JSZip from 'jszip';
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface ObsidianProject {
@@ -252,4 +254,52 @@ export function buildObsidianExport(
     console.error('[Obsidian Export] Error al construir export:', (err as Error).message);
     return null;
   }
+}
+
+// ─── Estructura de carpetas del vault ─────────────────────────────────────────
+
+/**
+ * Carpetas de categoría del vault de Obsidian.
+ * Coinciden con TYPE_TO_FOLDER más 'otros' (carpeta para tipos no reconocidos,
+ * la misma que usa buildFilename como respaldo).
+ */
+export const OBSIDIAN_CARPETAS = [
+  'sermones',
+  'ensenanzas',
+  'devocionales',
+  'estudios',
+  'videos',
+  'libros',
+  'otros',
+] as const;
+
+const ESTRUCTURA_LEEME = `# Estructura Obsidian — LemWriter
+
+Carpetas creadas por LemWriter Ministerial:
+
+- sermones/
+- ensenanzas/
+- devocionales/
+- estudios/
+- videos/
+- libros/
+- otros/
+
+Con el vault conectado, cada autoguardado guarda el .md de cada proyecto
+en su carpeta correspondiente.
+`;
+
+/**
+ * Genera un ZIP con la estructura de carpetas del vault de Obsidian.
+ * Pensado para el teléfono, donde el navegador no permite crear carpetas
+ * directamente en el dispositivo: se descarga/comparte el ZIP y se
+ * descomprime dentro del vault.
+ */
+export async function buildEstructuraObsidianZip(): Promise<Blob> {
+  const zip = new JSZip();
+  for (const carpeta of OBSIDIAN_CARPETAS) {
+    zip.folder(carpeta);
+  }
+  zip.file('LEEME.md', ESTRUCTURA_LEEME);
+  return zip.generateAsync({ type: 'blob' });
 }

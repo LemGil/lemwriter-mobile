@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import Underline from '@tiptap/extension-underline'
+import { Image } from '@tiptap/extension-image'
 import { CustomBlockquote, TipoNotaMinisterial } from '../utils/customBlockquote'
 import toast, { Toaster } from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
@@ -231,7 +231,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
           levels: [1, 2, 3, 4]
         }
       }),
-      Underline,
+      Image.configure({ inline: false, allowBase64: true }),
       CustomBlockquote,
       Placeholder.configure({
         placeholder: 'Comienza a escribir tu mensaje…'

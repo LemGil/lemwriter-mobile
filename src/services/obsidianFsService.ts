@@ -169,3 +169,40 @@ export async function requestAndSaveVaultFolder(): Promise<boolean> {
     return false;
   }
 }
+
+// ─── Creación guiada de la estructura de carpetas ─────────────────────────────
+
+/**
+ * Crea en el vault autorizado todas las carpetas de categoría de Obsidian.
+ * Las que ya existan se dejan intactas.
+ *
+ * @param carpetas - Nombres de las carpetas a crear (OBSIDIAN_CARPETAS).
+ * @returns { creadas, ok } — creadas: carpetas que no existían y se crearon.
+ */
+export async function ensureVaultStructure(
+  carpetas: readonly string[]
+): Promise<{ creadas: string[]; ok: boolean }> {
+  try {
+    const root = await loadRootHandle();
+    if (!root) return { creadas: [], ok: false };
+
+    const perm = await (root as FileSystemDirectoryHandleConPermisos).queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return { creadas: [], ok: false };
+
+    const creadas: string[] = [];
+    for (const nombre of carpetas) {
+      try {
+        // Si existe, no hace nada; si no existe lanza y la creamos
+        await root.getDirectoryHandle(nombre, { create: false });
+      } catch {
+        await root.getDirectoryHandle(nombre, { create: true });
+        creadas.push(nombre);
+      }
+    }
+    console.log('[Obsidian FS] Estructura verificada:', creadas.length === 0 ? 'ya existía' : `creadas: ${creadas.join(', ')}`);
+    return { creadas, ok: true };
+  } catch (err) {
+    console.error('[Obsidian FS] Error al crear estructura:', (err as Error).message);
+    return { creadas: [], ok: false };
+  }
+}
