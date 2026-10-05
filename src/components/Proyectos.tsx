@@ -449,7 +449,7 @@ export default function Proyectos({
       )}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1.2fr 1fr',
+        gridTemplateColumns: '1.2fr 1fr 1fr',
         gap: '8px',
         marginBottom: '14px'
       }}>
@@ -520,6 +520,40 @@ export default function Proyectos({
         >
           <span style={{ fontSize: '13px', lineHeight: 1 }}>📦</span>
           <span>Respaldo</span>
+        </button>
+
+        {/* Botón: Biblia offline */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('lw:abrir-biblia'))}
+          title="Leer y consultar la Biblia sin conexión (Reina-Valera 1909 y Versión Biblia Libre)"
+          style={{
+            background: 'rgba(20, 43, 55, 0.8)',
+            border: '1px solid rgba(201, 162, 74, 0.35)',
+            color: '#DFBE72',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            padding: '9px 8px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            fontFamily: "'Cinzel', serif",
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(201, 162, 74, 0.2)'
+            e.currentTarget.style.borderColor = '#C9A24A'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(20, 43, 55, 0.8)'
+            e.currentTarget.style.borderColor = 'rgba(201, 162, 74, 0.35)'
+          }}
+        >
+          <span style={{ fontSize: '13px', lineHeight: 1 }}>📖</span>
+          <span>Biblia</span>
         </button>
       </div>
 

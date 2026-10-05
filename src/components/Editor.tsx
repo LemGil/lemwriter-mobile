@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { Image } from '@tiptap/extension-image'
+import Underline from '@tiptap/extension-underline'
 import { CustomBlockquote, TipoNotaMinisterial } from '../utils/customBlockquote'
 import toast, { Toaster } from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
@@ -26,6 +26,7 @@ import { ExportarPDFModal } from './ExportarPDFModal'
 import { ModoLecturaModal, TemaLectura } from './ModoLecturaModal'
 import { SugerirTitulosModal } from './SugerirTitulosModal'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
+import { BibliaModal } from './BibliaModal'
 import { buildObsidianExport } from '../services/exportObsidianService'
 import { writeObsidianFile } from '../services/obsidianFsService'
 
@@ -89,6 +90,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   })
   const [modoLecturaAbierto, setModoLecturaAbierto] = useState(false)
   const [sugerirTitulosModalAbierto, setSugerirTitulosModalAbierto] = useState(false)
+  const [bibliaAbierta, setBibliaAbierta] = useState(false)
   const [pantallaCompleta, setPantallaCompleta] = useState(false)
 
   // Estado de Conflictos de Edición
@@ -231,7 +233,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
           levels: [1, 2, 3, 4]
         }
       }),
-      Image.configure({ inline: false, allowBase64: true }),
+      Underline,
       CustomBlockquote,
       Placeholder.configure({
         placeholder: 'Comienza a escribir tu mensaje…'
@@ -1201,10 +1203,10 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             </button>
           </div>
 
-          {/* LÍNEA 3: Exportación, Lectura Ministerial y Modos de Visualización (4 Botones) */}
+          {/* LÍNEA 3: Exportación, Lectura Ministerial, Biblia y Modos de Visualización (5 Botones) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1fr',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr',
             gap: '6px',
             width: '100%'
           }}>
@@ -1326,7 +1328,44 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               <span>Leer</span>
             </button>
 
-            {/* 4. Botón Modo Pantalla Completa / Enfoque */}
+            {/* 4. Botón Biblia Offline (consultar e insertar citas en el escrito) */}
+            <button
+              onClick={() => setBibliaAbierta(true)}
+              title="Abrir la Biblia sin conexión (Reina-Valera 1909 y Versión Biblia Libre) e insertar citas"
+              aria-label="Abrir Biblia offline"
+              style={{
+                height: '29px',
+                padding: '0 4px',
+                background: 'linear-gradient(135deg, rgba(201, 162, 74, 0.30) 0%, rgba(20, 43, 55, 0.95) 100%)',
+                border: '1px solid rgba(201, 162, 74, 0.55)',
+                color: '#DFBE72',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 700,
+                fontFamily: "'Cinzel', serif",
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(201, 162, 74, 0.38)'
+                e.currentTarget.style.borderColor = '#C9A24A'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(201, 162, 74, 0.30) 0%, rgba(20, 43, 55, 0.95) 100%)'
+                e.currentTarget.style.borderColor = 'rgba(201, 162, 74, 0.55)'
+              }}
+            >
+              <span style={{ fontSize: '11px', lineHeight: 1 }}>✝️</span>
+              <span>Biblia</span>
+            </button>
+
+            {/* 5. Botón Modo Pantalla Completa / Enfoque */}
             <button
               onClick={togglePantallaCompleta}
               title="Alternar Modo Pantalla Completa y Enfoque (Oculta barras y distracciones)"
@@ -3609,6 +3648,18 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
           projectType={proyectoActual.type}
           secciones={secciones}
           seccionActivaId={seccionActiva?.id}
+        />
+      )}
+
+      {/* Modal de Biblia offline (RV1909 + VBL): consultar e insertar la cita en el escrito */}
+      {bibliaAbierta && (
+        <BibliaModal
+          onClose={() => setBibliaAbierta(false)}
+          onInsertar={(cita) => {
+            if (editor) {
+              editor.chain().focus().insertContent(cita.html).run()
+            }
+          }}
         />
       )}
 

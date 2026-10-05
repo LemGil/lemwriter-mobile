@@ -6,6 +6,7 @@ import Editor from './components/Editor'
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAInstallButton } from './components/PWAInstallButton'
 import { RespaldoTotalModal } from './components/RespaldoTotalModal'
+import { BibliaVista } from './components/BibliaVista'
 import { isOfflineGuestSession, setOfflineGuestSession } from './lib/offlineStore'
 import type { Proyecto } from './types'
 
@@ -18,6 +19,7 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [tiposDisponibles, setTiposDisponibles] = useState<string[]>([])
   const [modalRespaldoAbierto, setModalRespaldoAbierto] = useState(false)
+  const [vista, setVista] = useState<'proyectos' | 'biblia'>('proyectos')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -43,13 +45,19 @@ export default function App() {
       setModalRespaldoAbierto(true)
     }
 
+    const handleAbrirBiblia = () => {
+      setVista('biblia')
+    }
+
     window.addEventListener('lw:session-change', handleSessionChange)
     window.addEventListener('lw:abrir-respaldo', handleAbrirRespaldo)
+    window.addEventListener('lw:abrir-biblia', handleAbrirBiblia)
 
     return () => {
       subscription.unsubscribe()
       window.removeEventListener('lw:session-change', handleSessionChange)
       window.removeEventListener('lw:abrir-respaldo', handleAbrirRespaldo)
+      window.removeEventListener('lw:abrir-biblia', handleAbrirBiblia)
     }
   }, [])
 
@@ -325,7 +333,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Controles de búsqueda y filtros */}
+      {/* Controles de búsqueda y filtros (solo en la vista de proyectos) */}
+      {vista === 'proyectos' && (
       <div style={{
         padding: '16px 16px 8px 16px',
         maxWidth: '840px',
@@ -457,6 +466,7 @@ export default function App() {
           </div>
         )}
       </div>
+      )}
 
       {/* Lista de proyectos */}
       <main style={{
@@ -467,22 +477,27 @@ export default function App() {
         padding: '0 16px 80px 16px',
         boxSizing: 'border-box'
       }}>
-        <Proyectos
-          onSelect={setProyectoActivo}
-          busqueda={busqueda}
-          filtroTipo={filtroTipo}
-          onTiposLoaded={setTiposDisponibles}
-          session={session}
-        />
+        {vista === 'biblia' ? (
+          <BibliaVista />
+        ) : (
+          <Proyectos
+            onSelect={setProyectoActivo}
+            busqueda={busqueda}
+            filtroTipo={filtroTipo}
+            onTiposLoaded={setTiposDisponibles}
+            session={session}
+          />
+        )}
       </main>
 
-      {/* Botón Flotante de Nuevo Proyecto (FAB) */}
+      {/* Botón Flotante de Nuevo Proyecto (FAB) — solo en Proyectos */}
+      {vista === 'proyectos' && (
       <button
         onClick={handleNuevoProyectoClick}
         aria-label="Nuevo Proyecto"
         style={{
           position: 'fixed',
-          bottom: '24px',
+          bottom: '88px',
           right: '24px',
           width: '56px',
           height: '56px',
@@ -510,6 +525,7 @@ export default function App() {
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
+      )}
       {/* Modal de Respaldo Total y PDF Consolidado */}
       {modalRespaldoAbierto && (
         <RespaldoTotalModal
@@ -519,6 +535,67 @@ export default function App() {
           }}
         />
       )}
+      {/* Barra de pestañas principal: Proyectos / Biblia */}
+      <nav
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 50,
+          background: 'rgba(13, 29, 39, 0.97)',
+          backdropFilter: 'blur(10px)',
+          borderTop: '1px solid rgba(201, 162, 74, 0.35)',
+          display: 'flex',
+          gap: '8px',
+          padding: '7px 10px max(9px, env(safe-area-inset-bottom, 9px))',
+        }}
+      >
+        <button
+          onClick={() => setVista('proyectos')}
+          aria-label="Ir a Proyectos"
+          style={{
+            flex: 1,
+            height: '46px',
+            borderRadius: '10px',
+            border: vista === 'proyectos' ? '1px solid #C9A24A' : '1px solid rgba(155, 176, 189, 0.25)',
+            background: vista === 'proyectos' ? 'rgba(201, 162, 74, 0.22)' : 'transparent',
+            color: vista === 'proyectos' ? '#DFBE72' : '#9BB0BD',
+            fontSize: '13px',
+            fontWeight: 700,
+            fontFamily: "'Cinzel', serif",
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+          }}
+        >
+          <span style={{ fontSize: '16px', lineHeight: 1 }}>📁</span> Proyectos
+        </button>
+        <button
+          onClick={() => setVista('biblia')}
+          aria-label="Ir a la Biblia"
+          style={{
+            flex: 1,
+            height: '46px',
+            borderRadius: '10px',
+            border: vista === 'biblia' ? '1px solid #C9A24A' : '1px solid rgba(155, 176, 189, 0.25)',
+            background: vista === 'biblia' ? 'rgba(201, 162, 74, 0.22)' : 'transparent',
+            color: vista === 'biblia' ? '#DFBE72' : '#9BB0BD',
+            fontSize: '13px',
+            fontWeight: 700,
+            fontFamily: "'Cinzel', serif",
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+          }}
+        >
+          <span style={{ fontSize: '16px', lineHeight: 1 }}>📖</span> Biblia
+        </button>
+      </nav>
     </div>
   )
 }
