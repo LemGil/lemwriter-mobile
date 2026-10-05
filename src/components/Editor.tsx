@@ -238,6 +238,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
       StarterKit.configure({
         blockquote: false,
         orderedList: false,
+        link: false,
+        underline: false,
         heading: {
           levels: [1, 2, 3, 4]
         }
@@ -2503,11 +2505,18 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
 
       {/* Toolbar Avanzada: tipo de numeración, alineación, color, resaltado, enlace y limpiar formato */}
       {editor && (
-        <div style={{
-          background: '#1E3D4F',
-          borderBottom: '1px solid rgba(201, 162, 74, 0.15)',
-          flexShrink: 0
-        }}>
+        <div
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).tagName !== 'INPUT') {
+              e.preventDefault()
+            }
+          }}
+          style={{
+            background: '#1E3D4F',
+            borderBottom: '1px solid rgba(201, 162, 74, 0.15)',
+            flexShrink: 0
+          }}
+        >
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -2633,7 +2642,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Limpiar formato (Tx) */}
             <button
               type="button"
-              onClick={() => editor.chain().focus().unsetAllMarks().run()}
+              onClick={() => editor.chain().focus().unsetAllMarks().unsetTextAlign().run()}
               title="Limpiar formato del texto seleccionado (Tx)"
               style={{
                 padding: '6px 9px',

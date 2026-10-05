@@ -8,9 +8,7 @@ import { OrderedList } from '@tiptap/extension-ordered-list'
 export type EstiloNumeracion = 'decimal' | 'upper-roman' | 'lower-roman' | 'upper-alpha' | 'lower-alpha'
 
 export const ESTILOS_NUMERACION: { id: EstiloNumeracion; etiqueta: string }[] = [
-  { id: 'decimal', etiqueta: '1, 2, 3' },
   { id: 'upper-roman', etiqueta: 'I, II, III' },
-  { id: 'lower-roman', etiqueta: 'i, ii, iii' },
   { id: 'upper-alpha', etiqueta: 'A, B, C' },
   { id: 'lower-alpha', etiqueta: 'a, b, c' },
 ]
