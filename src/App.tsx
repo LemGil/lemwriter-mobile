@@ -258,37 +258,6 @@ export default function App() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setModalRespaldoAbierto(true)}
-            title="Copia de Seguridad y Guardar todos como PDF"
-            style={{
-              background: 'linear-gradient(135deg, rgba(201, 162, 74, 0.22) 0%, rgba(30, 61, 79, 0.7) 100%)',
-              border: '1px solid #C9A24A',
-              color: '#DFBE72',
-              padding: '6px 11px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 600,
-              fontFamily: "'Cinzel', serif",
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(201, 162, 74, 0.35) 0%, rgba(30, 61, 79, 0.9) 100%)'
-              e.currentTarget.style.color = '#FFFFFF'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(201, 162, 74, 0.22) 0%, rgba(30, 61, 79, 0.7) 100%)'
-              e.currentTarget.style.color = '#DFBE72'
-            }}
-          >
-            <span>📦</span>
-            <span>RESPALDO</span>
-          </button>
           <PWAInstallButton compact />
           <button
             onClick={() => {
