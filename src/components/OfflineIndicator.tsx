@@ -17,7 +17,7 @@ export const OfflineIndicator: React.FC = () => {
       <div
         style={{
           position: 'fixed',
-          bottom: '16px',
+          bottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
           left: '16px',
           zIndex: 90,
           display: 'flex',
