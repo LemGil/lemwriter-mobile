@@ -5,6 +5,12 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import { CustomBlockquote, TipoNotaMinisterial } from '../utils/customBlockquote'
+import TextAlign from '@tiptap/extension-text-align'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
+import Link from '@tiptap/extension-link'
+import { ListaNumerada, ESTILOS_NUMERACION, EstiloNumeracion } from '../utils/listaNumerada'
 import toast, { Toaster } from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useDictado } from '../hooks/useDictado'
@@ -91,6 +97,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   const [modoLecturaAbierto, setModoLecturaAbierto] = useState(false)
   const [sugerirTitulosModalAbierto, setSugerirTitulosModalAbierto] = useState(false)
   const [bibliaAbierta, setBibliaAbierta] = useState(false)
+  const [panelFormato, setPanelFormato] = useState<'ninguno' | 'numeracion' | 'colorTexto' | 'resaltado' | 'enlace'>('ninguno')
+  const [urlEnlace, setUrlEnlace] = useState('')
   const [pantallaCompleta, setPantallaCompleta] = useState(false)
 
   // Estado de Conflictos de Edición
@@ -229,11 +237,18 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     extensions: [
       StarterKit.configure({
         blockquote: false,
+        orderedList: false,
         heading: {
           levels: [1, 2, 3, 4]
         }
       }),
+      ListaNumerada,
       Underline,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Link.configure({ openOnClick: false, autolink: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       CustomBlockquote,
       Placeholder.configure({
         placeholder: 'Comienza a escribir tu mensaje…'
@@ -2483,6 +2498,354 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             <span>{pantallaCompleta ? '🗗' : '⛶'}</span>
             <span className="hidden sm:inline">{pantallaCompleta ? 'Salir Enfoque' : 'Enfoque'}</span>
           </button>
+        </div>
+      )}
+
+      {/* Toolbar Avanzada: tipo de numeración, alineación, color, resaltado, enlace y limpiar formato */}
+      {editor && (
+        <div style={{
+          background: '#1E3D4F',
+          borderBottom: '1px solid rgba(201, 162, 74, 0.15)',
+          flexShrink: 0
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '5px 12px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none'
+          }}>
+            {/* Tipo de numeración de la lista ordenada */}
+            <button
+              type="button"
+              onClick={() => setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion')}
+              title="Tipo de numeración de la lista (1,2,3 · I,II,III · A,B,C)"
+              style={{
+                padding: '6px 9px',
+                borderRadius: '6px',
+                border: 'none',
+                background: editor.isActive('orderedList') || panelFormato === 'numeracion' ? 'rgba(201, 162, 74, 0.3)' : 'transparent',
+                color: editor.isActive('orderedList') || panelFormato === 'numeracion' ? '#DFBE72' : '#F5F1E8',
+                fontSize: '12px',
+                fontWeight: 700,
+                fontFamily: "'Cinzel', serif",
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              I, II ▾
+            </button>
+
+            <div style={{ width: '1px', height: '18px', background: 'rgba(201, 162, 74, 0.2)', margin: '0 4px' }} />
+
+            {/* Alineación */}
+            {([
+              { id: 'left', etiqueta: '⬅', titulo: 'Alinear a la izquierda' },
+              { id: 'center', etiqueta: '⬌', titulo: 'Centrar' },
+              { id: 'right', etiqueta: '➡', titulo: 'Alinear a la derecha' },
+              { id: 'justify', etiqueta: '☰', titulo: 'Justificar' },
+            ] as const).map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign(a.id).run()}
+                title={a.titulo}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: editor.isActive({ textAlign: a.id }) ? 'rgba(201, 162, 74, 0.3)' : 'transparent',
+                  color: editor.isActive({ textAlign: a.id }) ? '#DFBE72' : '#F5F1E8',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                {a.etiqueta}
+              </button>
+            ))}
+
+            <div style={{ width: '1px', height: '18px', background: 'rgba(201, 162, 74, 0.2)', margin: '0 4px' }} />
+
+            {/* Color de texto */}
+            <button
+              type="button"
+              onClick={() => setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto')}
+              title="Color del texto"
+              style={{
+                padding: '6px 9px',
+                borderRadius: '6px',
+                border: 'none',
+                borderBottom: '3px solid #DFBE72',
+                background: panelFormato === 'colorTexto' ? 'rgba(201, 162, 74, 0.3)' : 'transparent',
+                color: '#F5F1E8',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              A
+            </button>
+
+            {/* Resaltado */}
+            <button
+              type="button"
+              onClick={() => setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado')}
+              title="Resaltar texto"
+              style={{
+                padding: '6px 9px',
+                borderRadius: '6px',
+                border: 'none',
+                background: panelFormato === 'resaltado' ? 'rgba(201, 162, 74, 0.3)' : 'transparent',
+                color: '#F5F1E8',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              🖍️
+            </button>
+
+            {/* Enlace */}
+            <button
+              type="button"
+              onClick={() => {
+                if (panelFormato === 'enlace') {
+                  setPanelFormato('ninguno')
+                } else {
+                  setUrlEnlace(editor.getAttributes('link').href || '')
+                  setPanelFormato('enlace')
+                }
+              }}
+              title="Insertar o editar enlace"
+              style={{
+                padding: '6px 9px',
+                borderRadius: '6px',
+                border: 'none',
+                background: editor.isActive('link') || panelFormato === 'enlace' ? 'rgba(201, 162, 74, 0.3)' : 'transparent',
+                color: editor.isActive('link') || panelFormato === 'enlace' ? '#DFBE72' : '#F5F1E8',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              🔗
+            </button>
+
+            {/* Limpiar formato (Tx) */}
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().unsetAllMarks().run()}
+              title="Limpiar formato del texto seleccionado (Tx)"
+              style={{
+                padding: '6px 9px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'transparent',
+                color: '#F5F1E8',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Tx
+            </button>
+          </div>
+
+          {/* Panel: tipo de numeración */}
+          {panelFormato === 'numeracion' && (
+            <div style={{ display: 'flex', gap: '6px', padding: '2px 12px 8px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {ESTILOS_NUMERACION.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => {
+                    if (!editor.isActive('orderedList')) {
+                      editor.chain().focus().toggleOrderedList().run()
+                    }
+                    editor.chain().focus().updateAttributes('orderedList', { listStyle: e.id }).run()
+                    setPanelFormato('ninguno')
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '999px',
+                    border: editor.isActive('orderedList', { listStyle: e.id }) ? '1px solid #C9A24A' : '1px solid rgba(155,176,189,0.35)',
+                    background: editor.isActive('orderedList', { listStyle: e.id }) ? 'rgba(201, 162, 74, 0.25)' : 'rgba(18, 40, 52, 0.6)',
+                    color: editor.isActive('orderedList', { listStyle: e.id }) ? '#DFBE72' : '#D7E3EA',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {e.etiqueta}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Panel: color de texto */}
+          {panelFormato === 'colorTexto' && (
+            <div style={{ display: 'flex', gap: '7px', padding: '2px 12px 9px', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {['#F5F1E8', '#DFBE72', '#4AE098', '#38BDF8', '#F87171', '#FBBF24', '#C084FC', '#94A3B8'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={`Color ${c}`}
+                  onClick={() => {
+                    editor.chain().focus().setColor(c).run()
+                    setPanelFormato('ninguno')
+                  }}
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    background: c,
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  editor.chain().focus().unsetColor().run()
+                  setPanelFormato('ninguno')
+                }}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(155,176,189,0.35)',
+                  background: 'transparent',
+                  color: '#9BB0BD',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                ✕ Quitar
+              </button>
+            </div>
+          )}
+
+          {/* Panel: resaltado */}
+          {panelFormato === 'resaltado' && (
+            <div style={{ display: 'flex', gap: '7px', padding: '2px 12px 9px', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {['#FDE68A', '#A7F3D0', '#BAE6FD', '#FBCFE8', '#FED7AA', '#DDD6FE'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={`Resaltar ${c}`}
+                  onClick={() => {
+                    editor.chain().focus().setHighlight({ color: c }).run()
+                    setPanelFormato('ninguno')
+                  }}
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '7px',
+                    background: c,
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  editor.chain().focus().unsetHighlight().run()
+                  setPanelFormato('ninguno')
+                }}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(155,176,189,0.35)',
+                  background: 'transparent',
+                  color: '#9BB0BD',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                ✕ Quitar
+              </button>
+            </div>
+          )}
+
+          {/* Panel: enlace */}
+          {panelFormato === 'enlace' && (
+            <div style={{ display: 'flex', gap: '6px', padding: '2px 12px 9px', alignItems: 'center' }}>
+              <input
+                value={urlEnlace}
+                onChange={(e) => setUrlEnlace(e.target.value)}
+                placeholder="https://…"
+                inputMode="url"
+                style={{
+                  flex: 1,
+                  height: '32px',
+                  borderRadius: '7px',
+                  border: '1px solid rgba(155,176,189,0.35)',
+                  background: 'rgba(10, 24, 33, 0.8)',
+                  color: '#E8EEF2',
+                  padding: '0 9px',
+                  fontSize: '13px',
+                  fontFamily: "'Inter', sans-serif",
+                  outline: 'none',
+                  minWidth: 0
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const url = urlEnlace.trim()
+                  if (!url) {
+                    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                  } else {
+                    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
+                    editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+                  }
+                  setPanelFormato('ninguno')
+                }}
+                style={{
+                  height: '32px',
+                  padding: '0 12px',
+                  borderRadius: '7px',
+                  border: '1px solid rgba(201, 162, 74, 0.5)',
+                  background: 'rgba(201, 162, 74, 0.22)',
+                  color: '#DFBE72',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  fontFamily: "'Cinzel', serif",
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Aplicar
+              </button>
+              {editor.isActive('link') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                    setPanelFormato('ninguno')
+                  }}
+                  style={{
+                    height: '32px',
+                    padding: '0 10px',
+                    borderRadius: '7px',
+                    border: '1px solid rgba(155,176,189,0.35)',
+                    background: 'transparent',
+                    color: '#9BB0BD',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

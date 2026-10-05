@@ -210,6 +210,11 @@ export function generarHTMLMinisterial(
       gap: 6px 14px;
     }
 
+    ol[data-list-style="upper-roman"] { list-style-type: upper-roman; }
+    ol[data-list-style="lower-roman"] { list-style-type: lower-roman; }
+    ol[data-list-style="upper-alpha"] { list-style-type: upper-alpha; }
+    ol[data-list-style="lower-alpha"] { list-style-type: lower-alpha; }
+
     .sumario-item {
       font-size: 13px;
       color: #2D3748;

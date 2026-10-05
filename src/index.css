@@ -813,3 +813,13 @@ input, select, textarea, button {
   font-family: inherit;
 }
 
+
+/* Tipos de numeración de listas (Fase 2 — paridad con el PC) */
+.tiptap-container .ProseMirror ol[data-list-style="upper-roman"],
+.contenido-lectura ol[data-list-style="upper-roman"] { list-style-type: upper-roman; }
+.tiptap-container .ProseMirror ol[data-list-style="lower-roman"],
+.contenido-lectura ol[data-list-style="lower-roman"] { list-style-type: lower-roman; }
+.tiptap-container .ProseMirror ol[data-list-style="upper-alpha"],
+.contenido-lectura ol[data-list-style="upper-alpha"] { list-style-type: upper-alpha; }
+.tiptap-container .ProseMirror ol[data-list-style="lower-alpha"],
+.contenido-lectura ol[data-list-style="lower-alpha"] { list-style-type: lower-alpha; }
