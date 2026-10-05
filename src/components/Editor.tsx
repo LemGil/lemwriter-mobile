@@ -2528,7 +2528,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Tipo de numeración de la lista ordenada */}
             <button
               type="button"
-              onClick={() => setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion')}
+              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion') }}
               title="Tipo de numeración de la lista (1,2,3 · I,II,III · A,B,C)"
               style={{
                 padding: '6px 9px',
@@ -2558,7 +2558,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               <button
                 key={a.id}
                 type="button"
-                onClick={() => editor.chain().focus().setTextAlign(a.id).run()}
+                onPointerDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign(a.id).run() }}
                 title={a.titulo}
                 style={{
                   padding: '6px 8px',
@@ -2579,7 +2579,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Color de texto */}
             <button
               type="button"
-              onClick={() => setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto')}
+              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto') }}
               title="Color del texto"
               style={{
                 padding: '6px 9px',
@@ -2599,7 +2599,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Resaltado */}
             <button
               type="button"
-              onClick={() => setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado')}
+              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado') }}
               title="Resaltar texto"
               style={{
                 padding: '6px 9px',
@@ -2617,7 +2617,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Enlace */}
             <button
               type="button"
-              onClick={() => {
+              onPointerDown={(e) => { e.preventDefault();
                 if (panelFormato === 'enlace') {
                   setPanelFormato('ninguno')
                 } else {
@@ -2642,7 +2642,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Limpiar formato (Tx) */}
             <button
               type="button"
-              onClick={() => editor.chain().focus().unsetAllMarks().unsetTextAlign().run()}
+              onPointerDown={(e) => { e.preventDefault(); editor.chain().focus().unsetAllMarks().unsetTextAlign().run() }}
               title="Limpiar formato del texto seleccionado (Tx)"
               style={{
                 padding: '6px 9px',
@@ -2666,7 +2666,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                 <button
                   key={e.id}
                   type="button"
-                  onClick={() => {
+                  onPointerDown={(ev) => { ev.preventDefault();
                     if (!editor.isActive('orderedList')) {
                       editor.chain().focus().toggleOrderedList().run()
                     }
@@ -2699,7 +2699,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                   key={c}
                   type="button"
                   title={`Color ${c}`}
-                  onClick={() => {
+                  onPointerDown={(e) => { e.preventDefault();
                     editor.chain().focus().setColor(c).run()
                     setPanelFormato('ninguno')
                   }}
@@ -2716,7 +2716,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               ))}
               <button
                 type="button"
-                onClick={() => {
+                onPointerDown={(e) => { e.preventDefault();
                   editor.chain().focus().unsetColor().run()
                   setPanelFormato('ninguno')
                 }}
@@ -2744,7 +2744,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                   key={c}
                   type="button"
                   title={`Resaltar ${c}`}
-                  onClick={() => {
+                  onPointerDown={(e) => { e.preventDefault();
                     editor.chain().focus().setHighlight({ color: c }).run()
                     setPanelFormato('ninguno')
                   }}
@@ -2761,7 +2761,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               ))}
               <button
                 type="button"
-                onClick={() => {
+                onPointerDown={(e) => { e.preventDefault();
                   editor.chain().focus().unsetHighlight().run()
                   setPanelFormato('ninguno')
                 }}
@@ -2805,7 +2805,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               />
               <button
                 type="button"
-                onClick={() => {
+                onPointerDown={(e) => { e.preventDefault();
                   const url = urlEnlace.trim()
                   if (!url) {
                     editor.chain().focus().extendMarkRange('link').unsetLink().run()
@@ -2834,7 +2834,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               {editor.isActive('link') && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onPointerDown={(e) => { e.preventDefault();
                     editor.chain().focus().extendMarkRange('link').unsetLink().run()
                     setPanelFormato('ninguno')
                   }}
