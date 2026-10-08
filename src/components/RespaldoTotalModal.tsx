@@ -17,6 +17,7 @@ import {
   StorageQuotaInfo
 } from '../lib/offlineStore'
 import { ObsidianVaultSetup } from './settings/ObsidianVaultSetup'
+import { LocalTestPanel } from './settings/LocalTestPanel '
 import {
   isFileSystemAccessSupported,
   getVaultStatus,
@@ -1004,6 +1005,7 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
                   </div>
 
                   <ObsidianVaultSetup />
+                   <LocalTestPanel />
 
                   {/* ESTRUCTURA DE CARPETAS */}
                   <div style={{
