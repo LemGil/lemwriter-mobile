@@ -175,3 +175,14 @@ export async function flushDataStore(): Promise<void> {
     await local.flushLocalStore()
   }
 }
+
+/**
+ * Relee la fuente de datos antes de mostrarla (solo aplica en Local:
+ * vuelve a leer las carpetas). En la app de siempre no hace nada; allí
+ * la lista la manda la nube y su caché, como hasta ahora.
+ */
+export async function refrescarDataStore(): Promise<void> {
+  if (ES_LOCAL) {
+    await local.refrescarLocalStore()
+  }
+}

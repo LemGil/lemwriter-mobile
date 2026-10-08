@@ -29,6 +29,7 @@ import {
   EditConflict
 } from '../lib/dataStore'
 import { ES_LOCAL } from '../lib/flavor'
+import { htmlATextoCompartible, compartirTextoPlano } from '../lib/compartirSeccion'
 import { ExportarPDFModal } from './ExportarPDFModal'
 import { ModoLecturaModal, TemaLectura } from './ModoLecturaModal'
 import { SugerirTitulosModal } from './SugerirTitulosModal'
@@ -239,6 +240,28 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
   }, [pantallaCompleta, confirmarSalidaModal])
+
+  const handleCompartirSeccion = async () => {
+    if (!seccionActiva) return
+    try {
+      const html = editor?.getHTML() || seccionActiva.content || ''
+      const texto = htmlATextoCompartible(html, seccionActiva.title)
+      const soloTitulo = `*${(seccionActiva.title || '').trim()}*`
+      if (!texto || texto === soloTitulo) {
+        toast.error('La sección está vacía')
+        return
+      }
+      const resultado = await compartirTextoPlano({
+        title: seccionActiva.title || 'Sección',
+        text: texto
+      })
+      if (resultado === 'copiado') toast.success('Texto copiado: pégalo donde quieras')
+    } catch (e) {
+      if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
+        toast.error('No se pudo abrir el compartir')
+      }
+    }
+  }
 
   const cicloTema = () => {
     const siguienteTema: Record<TemaLectura, TemaLectura> = {
@@ -1278,10 +1301,10 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             </button>
           </div>
 
-          {/* LÍNEA 3: Exportación, Lectura Ministerial, Biblia y Modos de Visualización (5 Botones) */}
+          {/* LÍNEA 3: Exportación, Lectura Ministerial, Biblia, Modos de Visualización y Compartir (6 Botones) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr',
             gap: '6px',
             width: '100%'
           }}>
@@ -1475,6 +1498,41 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             >
               <span style={{ fontSize: '11px', lineHeight: 1 }}>⛶</span>
               <span>Enfoque</span>
+            </button>
+
+            {/* 6. Botón Compartir sección (texto listo para pegar) */}
+            <button
+              onClick={handleCompartirSeccion}
+              title="Compartir esta sección como texto (WhatsApp, redes, correo…)"
+              aria-label="Compartir sección como texto"
+              style={{
+                height: '29px',
+                padding: '0 4px',
+                background: 'rgba(20, 43, 55, 0.85)',
+                border: '1px solid rgba(201, 162, 74, 0.35)',
+                color: '#DFBE72',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '9px',
+                fontWeight: 700,
+                fontFamily: "'Cinzel', serif",
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(201, 162, 74, 0.25)'
+                e.currentTarget.style.borderColor = '#C9A24A'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(20, 43, 55, 0.85)'
+                e.currentTarget.style.borderColor = 'rgba(201, 162, 74, 0.35)'
+              }}
+            >
+              <span>Compartir</span>
             </button>
           </div>
 

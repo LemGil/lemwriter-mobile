@@ -13,11 +13,13 @@ import {
   getPendingConflicts,
   getPendingSyncQueue,
   processOfflineSyncQueue,
+  refrescarDataStore,
   EditConflict
 } from '../lib/dataStore'
 import { ES_LOCAL } from '../lib/flavor'
 import { SwipeableProjectCard } from './SwipeableProjectCard'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
+import { ImportarDocumentoModal } from './ImportarDocumentoModal'
 import {
   cargarEstadosPublicacion,
   guardarEstadosPublicacion,
@@ -76,6 +78,7 @@ export default function Proyectos({
 }: ProyectosProps) {
   const queryClient = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [importarAbierto, setImportarAbierto] = useState(false)
   const [nuevoTitulo, setNuevoTitulo] = useState('')
   const [nuevoTipo, setNuevoTipo] = useState('sermon')
   const [creando, setCreando] = useState(false)
@@ -145,8 +148,13 @@ export default function Proyectos({
   const { data: proyectos = [], isLoading: loading } = useQuery({
     queryKey: ['proyectos'],
     queryFn: async () => {
-      // LemWriter Local: la lista sale siempre de las carpetas
+      // LemWriter Local: la lista sale siempre de las carpetas. Se releen
+      // al pedir la lista: si la lectura del arranque salió mal, la
+      // pantalla se sana sola sin reiniciar la app.
       if (ES_LOCAL) {
+        await refrescarDataStore().catch((e) =>
+          console.warn('[LemWriter Local] No se pudieron leer las carpetas:', e)
+        )
         return getOfflineProjects() as Proyecto[]
       }
       // Si estamos sin conexión o en modo offline, retornar caché local
@@ -596,6 +604,34 @@ export default function Proyectos({
         </button>
       </div>
 
+      {/* LemWriter Local: importar documentos externos (§4.2) */}
+      {ES_LOCAL && (
+        <button
+          onClick={() => setImportarAbierto(true)}
+          title="Traer un .docx, .pdf, .txt o .md y convertirlo en proyecto editable"
+          style={{
+            width: '100%',
+            marginBottom: '14px',
+            background: 'rgba(20, 43, 55, 0.8)',
+            border: '1px solid rgba(201, 162, 74, 0.35)',
+            color: '#DFBE72',
+            fontSize: '12px',
+            fontWeight: 700,
+            padding: '10px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            fontFamily: "'Cinzel', serif"
+          }}
+        >
+          <span style={{ fontSize: '14px', lineHeight: 1 }}>📥</span>
+          <span>Importar documento (.docx, .pdf, .txt, .md)</span>
+        </button>
+      )}
+
       {/* Banner de Conflictos de Edición si existen */}
       {conflictos.length > 0 && (
         <div
@@ -734,6 +770,18 @@ export default function Proyectos({
             + Crear Primer Mensaje
           </button>
         </div>
+      )}
+
+      {/* Modal: importar documento (LemWriter Local) */}
+      {importarAbierto && (
+        <ImportarDocumentoModal
+          onClose={() => setImportarAbierto(false)}
+          onImportado={(proyecto) => {
+            setImportarAbierto(false)
+            queryClient.invalidateQueries({ queryKey: ['proyectos'] })
+            onSelect(proyecto)
+          }}
+        />
       )}
 
       {/* Modal / Bottom Sheet de Nuevo Proyecto */}

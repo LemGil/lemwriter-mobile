@@ -78,19 +78,44 @@ export async function initLocalStore(adaptador?: FsAdapter): Promise<void> {
   if (promesaInit) return promesaInit
   promesaInit = (async () => {
     store = new FolderStore(adaptador ?? crearAdaptador(), carpetaRaizGuardada())
-    await store.asegurarEstructura()
-    const carpetas = await store.listarProyectos()
-    proyectosCache = carpetas.map(aProyectoApp)
-    seccionesCache.clear()
-    for (const p of carpetas) {
-      const secciones = await store.listarSecciones(p.id)
-      seccionesCache.set(
-        p.id,
-        secciones.map((s) => aSeccionApp(p, s))
-      )
-    }
+    await cargarDesdeCarpetas()
   })()
-  return promesaInit
+  try {
+    await promesaInit
+  } catch (e) {
+    // Una primera lectura fallida (p. ej. el sistema de archivos aún no
+    // respondía al arrancar) no condena la sesión a una lista vacía:
+    // se olvida la promesa para que un refresco posterior lo reintente.
+    promesaInit = null
+    throw e
+  }
+}
+
+async function cargarDesdeCarpetas(): Promise<void> {
+  if (!store) store = new FolderStore(crearAdaptador(), carpetaRaizGuardada())
+  await store.asegurarEstructura()
+  const carpetas = await store.listarProyectos()
+  proyectosCache = carpetas.map(aProyectoApp)
+  seccionesCache.clear()
+  for (const p of carpetas) {
+    const secciones = await store.listarSecciones(p.id)
+    seccionesCache.set(
+      p.id,
+      secciones.map((s) => aSeccionApp(p, s))
+    )
+  }
+}
+
+/**
+ * Relee las carpetas y actualiza la foto en memoria. Las pantallas lo
+ * piden antes de mostrar la lista: sana una lectura de arranque fallida
+ * y recoge cambios hechos por fuera de esta capa (el panel de prueba,
+ * otro programa) sin tener que reiniciar la app.
+ */
+export async function refrescarLocalStore(): Promise<void> {
+  await initLocalStore()
+  await flushLocalStore()
+  await cargarDesdeCarpetas()
 }
 
 function aProyectoApp(p: FolderProyecto): OfflineProyecto {
