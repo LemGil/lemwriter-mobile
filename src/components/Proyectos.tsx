@@ -14,9 +14,16 @@ import {
   getPendingSyncQueue,
   processOfflineSyncQueue,
   EditConflict
-} from '../lib/offlineStore'
+} from '../lib/dataStore'
+import { ES_LOCAL } from '../lib/flavor'
 import { SwipeableProjectCard } from './SwipeableProjectCard'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
+import {
+  cargarEstadosPublicacion,
+  guardarEstadosPublicacion,
+  leerEstadosPublicacionGuardados,
+  type EstadoPublicacionAcademia
+} from '../lib/publicarAcademia'
 import type { Proyecto } from '../types'
 
 interface ProyectosProps {
@@ -28,12 +35,13 @@ interface ProyectosProps {
 }
 
 const TIPO_CONFIG: Record<string, { icon: string; label: string; desc: string }> = {
-  sermon: { icon: '🎤', label: 'Sermón', desc: 'Mensaje dominical y prédicas' },
-  ensenanza: { icon: '📖', label: 'Enseñanza', desc: 'Discipulado y doctrina' },
-  devocional: { icon: '🕊️', label: 'Devocional', desc: 'Meditaciones y clamor' },
-  libro: { icon: '📚', label: 'Libro', desc: 'Capítulos y tratados' },
-  video: { icon: '🎬', label: 'Video', desc: 'Guiones y transmisiones' },
-  estudio: { icon: '🔬', label: 'Estudio', desc: 'Investigación bíblica profunda' },
+  estudio: { icon: '🔬', label: 'Estudio', desc: 'Investigación de un tema. Estudio de un libro de la Biblia.' },
+  ensenanza: { icon: '📖', label: 'Enseñanza', desc: 'Registro de las transcripciones de las Series de Enseñanza compartidas con la Iglesia: transcripciones limpias y organizadas.' },
+  sermon: { icon: '🎤', label: 'Sermón', desc: 'Las frases más relevantes de cada tema, para convertir en un sermón.' },
+  video: { icon: '🎬', label: 'Video', desc: 'Los puntos principales de las enseñanzas, convertidos en guiones cortos y largos.' },
+  devocional: { icon: '🕊️', label: 'Devocional', desc: 'Los puntos fundamentales de las enseñanzas, convertidos en devocionales diarios.' },
+  academia: { icon: '🎓', label: 'Academia', desc: 'Series ya completas, organizadas y estructuradas para los cursos de la Academia.' },
+  libro: { icon: '📚', label: 'Libro', desc: 'Toda la información investigada, enseñada y enriquecida con los temas compartidos, unida y organizada en un libro.' },
 }
 
 function formatFechaRelativa(dateStr: string): string {
@@ -137,6 +145,10 @@ export default function Proyectos({
   const { data: proyectos = [], isLoading: loading } = useQuery({
     queryKey: ['proyectos'],
     queryFn: async () => {
+      // LemWriter Local: la lista sale siempre de las carpetas
+      if (ES_LOCAL) {
+        return getOfflineProjects() as Proyecto[]
+      }
       // Si estamos sin conexión o en modo offline, retornar caché local
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         return getOfflineProjects() as Proyecto[]
@@ -160,6 +172,34 @@ export default function Proyectos({
       }
     }
   })
+
+  const proyectosAcademiaIds = proyectos
+    .filter((p) => (p.type || '').toLowerCase() === 'academia')
+    .map((p) => p.id)
+  const idsAcademiaKey = [...proyectosAcademiaIds].sort().join('|')
+
+  // La marca «Publicado» sale del enlace real con la Academia
+  // (cursos.lemwriter_id). Sin conexión se muestra el último estado conocido.
+  const { data: estadosPublicacionData } = useQuery({
+    queryKey: ['publicacion-academia', idsAcademiaKey],
+    queryFn: async () => {
+      const guardados = leerEstadosPublicacionGuardados()
+      if (ES_LOCAL || !idsAcademiaKey || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return guardados
+      }
+      try {
+        const actuales = await cargarEstadosPublicacion(idsAcademiaKey.split('|'))
+        guardarEstadosPublicacion(actuales)
+        return { ...guardados, ...actuales }
+      } catch {
+        return guardados
+      }
+    },
+    enabled: proyectosAcademiaIds.length > 0,
+    staleTime: 0,
+    retry: false
+  })
+  const estadosPublicacion = (estadosPublicacionData ?? {}) as Record<string, EstadoPublicacionAcademia>
 
   // Actualizar lista de tipos únicos disponibles para los pills del App
   useEffect(() => {
@@ -190,17 +230,16 @@ export default function Proyectos({
     setCreando(true)
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
 
-    if (isOnline) {
+    if (isOnline && !ES_LOCAL) {
       try {
-        const userId = session?.user?.id || (await supabase.auth.getUser()).data?.user?.id
 
         const { data: proyectoData, error: projError } = await supabase
           .from('lw_proyectos')
           .insert([
             {
+              id: `project-${Date.now()}`,
               title: nuevoTitulo.trim(),
               type: nuevoTipo,
-              user_id: userId,
               updated_at: new Date().toISOString()
             }
           ])
@@ -311,7 +350,7 @@ export default function Proyectos({
       updated_at: new Date().toISOString()
     })
 
-    if (isOnline && !editarProyectoModal.id.startsWith('local_')) {
+    if (isOnline && !ES_LOCAL && !editarProyectoModal.id.startsWith('local_')) {
       try {
         const { error } = await supabase
           .from('lw_proyectos')
@@ -354,7 +393,7 @@ export default function Proyectos({
     deleteOfflineProject(eliminarProyectoModal.id)
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline && !eliminarProyectoModal.id.startsWith('local_')) {
+    if (isOnline && !ES_LOCAL && !eliminarProyectoModal.id.startsWith('local_')) {
       try {
         await supabase.from('lw_secciones').delete().eq('project_id', eliminarProyectoModal.id)
         await supabase.from('lw_proyectos').delete().eq('id', eliminarProyectoModal.id)
@@ -449,7 +488,7 @@ export default function Proyectos({
       )}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1.2fr 1fr',
+        gridTemplateColumns: '1.2fr 1fr 1fr',
         gap: '8px',
         marginBottom: '14px'
       }}>
@@ -522,6 +561,39 @@ export default function Proyectos({
           <span>Respaldo</span>
         </button>
 
+        {/* Botón: Biblia offline */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('lw:abrir-biblia'))}
+          title="Leer y consultar la Biblia sin conexión (Reina-Valera 1909 y Versión Biblia Libre)"
+          style={{
+            background: 'rgba(20, 43, 55, 0.8)',
+            border: '1px solid rgba(201, 162, 74, 0.35)',
+            color: '#DFBE72',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            padding: '9px 8px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            fontFamily: "'Cinzel', serif",
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(201, 162, 74, 0.2)'
+            e.currentTarget.style.borderColor = '#C9A24A'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(20, 43, 55, 0.8)'
+            e.currentTarget.style.borderColor = 'rgba(201, 162, 74, 0.35)'
+          }}
+        >
+          <span style={{ fontSize: '13px', lineHeight: 1 }}>📖</span>
+          <span>Biblia</span>
+        </button>
       </div>
 
       {/* Banner de Conflictos de Edición si existen */}
@@ -598,6 +670,9 @@ export default function Proyectos({
               proyecto={p}
               tipoInfo={tipoInfo}
               fechaRelativa={fechaRelativa}
+              publicacion={
+                (p.type || '').toLowerCase() === 'academia' ? estadosPublicacion[p.id] : undefined
+              }
               onSelect={onSelect}
               onEdit={abrirEditarModal}
               onDelete={(proj) => setEliminarProyectoModal(proj)}

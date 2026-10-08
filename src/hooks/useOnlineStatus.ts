@@ -5,7 +5,7 @@ import {
   isOfflineGuestSession,
   getPendingConflicts,
   EditConflict
-} from '../lib/offlineStore'
+} from '../lib/dataStore'
 import toast from 'react-hot-toast'
 
 export function useOnlineStatus() {

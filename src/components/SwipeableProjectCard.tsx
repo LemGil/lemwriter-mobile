@@ -9,9 +9,22 @@ interface SwipeableProjectCardProps {
     desc: string
   }
   fechaRelativa: string
+  publicacion?: {
+    publicado: boolean
+    fechaPublicacion?: string | null
+  }
   onSelect: (p: Proyecto) => void
   onEdit: (p: Proyecto, e: React.MouseEvent) => void
   onDelete: (p: Proyecto) => void
+}
+
+function formatFechaPublicacion(fecha?: string | null): string {
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  if (Number.isNaN(d.getTime())) return ''
+  return d
+    .toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+    .replace(/\./g, '')
 }
 
 const ACTION_WIDTH = 84
@@ -22,6 +35,7 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
   proyecto,
   tipoInfo,
   fechaRelativa,
+  publicacion,
   onSelect,
   onEdit,
   onDelete
@@ -357,7 +371,9 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                flexWrap: 'wrap',
+                gap: '6px',
+                rowGap: '4px',
                 marginTop: '4px',
                 fontSize: '12px',
                 color: '#8E9EA7',
@@ -376,6 +392,28 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
               >
                 {tipoInfo.label}
               </span>
+              {publicacion && (
+                <span
+                  style={{
+                    color: publicacion.publicado ? '#7CF0B0' : '#C7D2D9',
+                    background: publicacion.publicado
+                      ? 'rgba(48, 164, 108, 0.16)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                    border: publicacion.publicado
+                      ? '1px solid rgba(74, 224, 152, 0.35)'
+                      : '1px solid rgba(199, 210, 217, 0.22)',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {publicacion.publicado
+                    ? `🎓 Publicado${formatFechaPublicacion(publicacion.fechaPublicacion) ? ` · ${formatFechaPublicacion(publicacion.fechaPublicacion)}` : ''}`
+                    : 'Sin publicar'}
+                </span>
+              )}
               <span>·</span>
               <span>{fechaRelativa}</span>
             </div>

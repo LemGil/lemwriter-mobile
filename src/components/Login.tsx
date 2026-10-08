@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { setOfflineGuestSession } from '../lib/offlineStore'
+import { setOfflineGuestSession } from '../lib/dataStore'
 
 interface LoginProps {
   onLogin: () => void

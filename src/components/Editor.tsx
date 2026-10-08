@@ -27,12 +27,19 @@ import {
   getPendingConflicts,
   saveConflict,
   EditConflict
-} from '../lib/offlineStore'
+} from '../lib/dataStore'
+import { ES_LOCAL } from '../lib/flavor'
 import { ExportarPDFModal } from './ExportarPDFModal'
 import { ModoLecturaModal, TemaLectura } from './ModoLecturaModal'
 import { SugerirTitulosModal } from './SugerirTitulosModal'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
 import { BibliaModal } from './BibliaModal'
+import { PublicarAcademiaModal } from './PublicarAcademiaModal'
+import {
+  buscarCursoEnlazado,
+  guardarEstadoPublicacion,
+  type EstadoPublicacionAcademia
+} from '../lib/publicarAcademia'
 import { buildObsidianExport } from '../services/exportObsidianService'
 import { writeObsidianFile } from '../services/obsidianFsService'
 
@@ -63,6 +70,15 @@ function getWordCount(html: string): number {
   return text ? text.split(' ').filter(Boolean).length : 0
 }
 
+function formatFechaPublicacionAcademia(fecha?: string | null): string {
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  if (Number.isNaN(d.getTime())) return ''
+  return d
+    .toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+    .replace(/\./g, '')
+}
+
 export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorProps) {
   const [proyectoActual, setProyectoActual] = useState(proyecto)
   const [secciones, setSecciones] = useState<Seccion[]>([])
@@ -79,6 +95,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   // Modales y control de Índice de Secciones
   const [indiceAbierto, setIndiceAbierto] = useState(false)
   const [exportarPDFModalAbierto, setExportarPDFModalAbierto] = useState(false)
+  const [publicarAcademiaAbierto, setPublicarAcademiaAbierto] = useState(false)
+  const [estadoPublicacion, setEstadoPublicacion] = useState<EstadoPublicacionAcademia | null>(null)
   const [busquedaIndice, setBusquedaIndice] = useState('')
   const [nuevaSeccionModal, setNuevaSeccionModal] = useState(false)
   const [nuevaSeccionTitulo, setNuevaSeccionTitulo] = useState('')
@@ -97,6 +115,16 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   const [modoLecturaAbierto, setModoLecturaAbierto] = useState(false)
   const [sugerirTitulosModalAbierto, setSugerirTitulosModalAbierto] = useState(false)
   const [bibliaAbierta, setBibliaAbierta] = useState(false)
+  const accionesRef = useRef<Record<string, number>>({})
+  // Los botones de formato responden al apoyar el dedo Y al click (lo que el
+  // navegador del teléfono entregue); la marca de tiempo evita ejecutar dos veces.
+  const alTocar = (clave: string, fn: () => void) => (e: React.SyntheticEvent) => {
+    e.preventDefault()
+    const ahora = Date.now()
+    if (ahora - (accionesRef.current[clave] || 0) < 600) return
+    accionesRef.current[clave] = ahora
+    fn()
+  }
   const [panelFormato, setPanelFormato] = useState<'ninguno' | 'numeracion' | 'colorTexto' | 'resaltado' | 'enlace'>('ninguno')
   const [urlEnlace, setUrlEnlace] = useState('')
   const [pantallaCompleta, setPantallaCompleta] = useState(false)
@@ -122,6 +150,36 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
       window.removeEventListener('lw:conflict-resolved', handleConflicts)
     }
   }, [proyecto.id])
+
+  // Marca de publicación en la Academia: se lee del enlace real
+  // (cursos.lemwriter_id) y se guarda el último estado conocido.
+  useEffect(() => {
+    if ((proyectoActual.type || '').toLowerCase() !== 'academia') {
+      setEstadoPublicacion(null)
+      return
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+
+    let vivo = true
+    buscarCursoEnlazado(proyectoActual.id)
+      .then((curso) => {
+        if (!vivo) return
+        const estado: EstadoPublicacionAcademia = curso
+          ? {
+              publicado: true,
+              fechaPublicacion: curso.updated_at || curso.created_at || null,
+              cursoId: curso.id,
+              cursoTitulo: curso.titulo
+            }
+          : { publicado: false, fechaPublicacion: null, cursoId: null, cursoTitulo: null }
+        setEstadoPublicacion(estado)
+        guardarEstadoPublicacion(proyectoActual.id, estado)
+      })
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [proyectoActual.id, proyectoActual.type])
 
   const conflictoSeccionActual = seccionActiva
     ? conflictosProyecto.find((c) => c.sectionId === seccionActiva.id && c.status === 'pending')
@@ -358,7 +416,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   async function cargarSecciones() {
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
 
-    if (isOnline && !proyecto.id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !proyecto.id.startsWith('local_')) {
       try {
         const { data, error } = await supabase
           .from('lw_secciones')
@@ -431,7 +489,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
 
-    if (isOnline && !targetId.startsWith('local_') && !proyecto.id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !targetId.startsWith('local_') && !proyecto.id.startsWith('local_')) {
       try {
         // Pre-flight check: verificar si en la nube hubo cambios concurrentes desde otro dispositivo
         const { data: remoteSec } = await supabase
@@ -656,7 +714,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     const tituloLimpio = nuevaSeccionTitulo.trim()
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
 
-    if (isOnline && !proyecto.id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !proyecto.id.startsWith('local_')) {
       try {
         const { data, error } = await supabase
           .from('lw_secciones')
@@ -722,7 +780,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     }
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline && !id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !id.startsWith('local_')) {
       try {
         await supabase
           .from('lw_secciones')
@@ -765,7 +823,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     }
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline && !proyectoActual.id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !proyectoActual.id.startsWith('local_')) {
       try {
         await supabase
           .from('lw_proyectos')
@@ -816,7 +874,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     }
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline && !proyectoActual.id.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !proyectoActual.id.startsWith('local_')) {
       try {
         await supabase
           .from('lw_proyectos')
@@ -860,7 +918,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     setEliminarModal(null)
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline && !idAEliminar.startsWith('local_')) {
+    if (!ES_LOCAL && isOnline && !idAEliminar.startsWith('local_')) {
       try {
         await supabase.from('lw_secciones').delete().eq('id', idAEliminar)
         toast.success('Sección eliminada')
@@ -887,7 +945,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     saveOfflineSections(proyecto.id, actualizadas)
 
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine
-    if (isOnline) {
+    if (isOnline && !ES_LOCAL) {
       try {
         const updates = actualizadas.map((s) =>
           !s.id.startsWith('local_')
@@ -1419,6 +1477,66 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               <span>Enfoque</span>
             </button>
           </div>
+
+          {/* Publicar en la Academia del Espíritu (solo proyectos tipo Academia) */}
+          {(proyectoActual.type || '').toLowerCase() === 'academia' && (
+            <div style={{ marginTop: '6px' }}>
+            <button
+              onClick={() => setPublicarAcademiaAbierto(true)}
+              title="Publicar este proyecto como curso en la Academia del Espíritu"
+              aria-label="Publicar en Academia"
+              style={{
+                width: '100%',
+                marginTop: '6px',
+                height: '32px',
+                padding: '0 10px',
+                background: 'linear-gradient(135deg, #C9A24A 0%, #9C7B2D 100%)',
+                border: '1px solid #C9A24A',
+                color: '#142B37',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontSize: '11.5px',
+                fontWeight: 800,
+                fontFamily: "'Cinzel', serif",
+                letterSpacing: '0.4px',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+              }}
+            >
+              <span style={{ fontSize: '13px', lineHeight: 1 }}>🎓</span>
+              <span>Publicar en Academia</span>
+            </button>
+            {estadoPublicacion && (
+              <div style={{ marginTop: '5px', display: 'flex', justifyContent: 'center' }}>
+                <span
+                  style={{
+                    color: estadoPublicacion.publicado ? '#7CF0B0' : '#C7D2D9',
+                    background: estadoPublicacion.publicado
+                      ? 'rgba(48, 164, 108, 0.16)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                    border: estadoPublicacion.publicado
+                      ? '1px solid rgba(74, 224, 152, 0.35)'
+                      : '1px solid rgba(199, 210, 217, 0.22)',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontFamily: "'Inter', sans-serif",
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {estadoPublicacion.publicado
+                    ? `🎓 Publicado${formatFechaPublicacionAcademia(estadoPublicacion.fechaPublicacion) ? ` · ${formatFechaPublicacionAcademia(estadoPublicacion.fechaPublicacion)}` : ''}`
+                    : 'Sin publicar en la Academia'}
+                </span>
+              </div>
+            )}
+            </div>
+          )}
         </header>
       )}
 
@@ -2520,15 +2638,15 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
           <div style={{
             display: 'flex',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: '4px',
             padding: '5px 12px',
-            overflowX: 'auto',
             scrollbarWidth: 'none'
           }}>
             {/* Tipo de numeración de la lista ordenada */}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion') }}
+              onPointerDown={alTocar('panel-numeracion', () => { setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion') })} onClick={alTocar('panel-numeracion', () => { setPanelFormato(panelFormato === 'numeracion' ? 'ninguno' : 'numeracion') })}
               title="Tipo de numeración de la lista (1,2,3 · I,II,III · A,B,C)"
               style={{
                 padding: '6px 9px',
@@ -2550,15 +2668,15 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
 
             {/* Alineación */}
             {([
-              { id: 'left', etiqueta: '⬅', titulo: 'Alinear a la izquierda' },
-              { id: 'center', etiqueta: '⬌', titulo: 'Centrar' },
-              { id: 'right', etiqueta: '➡', titulo: 'Alinear a la derecha' },
-              { id: 'justify', etiqueta: '☰', titulo: 'Justificar' },
+              { id: 'left', etiqueta: 'Izquierda', titulo: 'Alinear a la izquierda' },
+              { id: 'center', etiqueta: 'Centro', titulo: 'Centrar' },
+              { id: 'right', etiqueta: 'Derecha', titulo: 'Alinear a la derecha' },
+              { id: 'justify', etiqueta: 'Justificar', titulo: 'Justificar' },
             ] as const).map((a) => (
               <button
                 key={a.id}
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign(a.id).run() }}
+                onPointerDown={alTocar('alinear-' + a.id, () => { editor.chain().setTextAlign(a.id).run() })} onClick={alTocar('alinear-' + a.id, () => { editor.chain().setTextAlign(a.id).run() })}
                 title={a.titulo}
                 style={{
                   padding: '6px 8px',
@@ -2579,7 +2697,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Color de texto */}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto') }}
+              onPointerDown={alTocar('panel-color', () => { setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto') })} onClick={alTocar('panel-color', () => { setPanelFormato(panelFormato === 'colorTexto' ? 'ninguno' : 'colorTexto') })}
               title="Color del texto"
               style={{
                 padding: '6px 9px',
@@ -2599,7 +2717,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Resaltado */}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado') }}
+              onPointerDown={alTocar('panel-resaltado', () => { setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado') })} onClick={alTocar('panel-resaltado', () => { setPanelFormato(panelFormato === 'resaltado' ? 'ninguno' : 'resaltado') })}
               title="Resaltar texto"
               style={{
                 padding: '6px 9px',
@@ -2617,14 +2735,17 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Enlace */}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault();
-                if (panelFormato === 'enlace') {
+              onPointerDown={alTocar('panel-enlace', () => { if (panelFormato === 'enlace') {
                   setPanelFormato('ninguno')
                 } else {
                   setUrlEnlace(editor.getAttributes('link').href || '')
                   setPanelFormato('enlace')
-                }
-              }}
+                } })} onClick={alTocar('panel-enlace', () => { if (panelFormato === 'enlace') {
+                  setPanelFormato('ninguno')
+                } else {
+                  setUrlEnlace(editor.getAttributes('link').href || '')
+                  setPanelFormato('enlace')
+                } })}
               title="Insertar o editar enlace"
               style={{
                 padding: '6px 9px',
@@ -2642,7 +2763,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Limpiar formato (Tx) */}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); editor.chain().focus().unsetAllMarks().unsetTextAlign().run() }}
+              onPointerDown={alTocar('tx', () => { editor.chain().unsetAllMarks().unsetTextAlign().run() })} onClick={alTocar('tx', () => { editor.chain().unsetAllMarks().unsetTextAlign().run() })}
               title="Limpiar formato del texto seleccionado (Tx)"
               style={{
                 padding: '6px 9px',
@@ -2666,13 +2787,15 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                 <button
                   key={e.id}
                   type="button"
-                  onPointerDown={(ev) => { ev.preventDefault();
-                    if (!editor.isActive('orderedList')) {
-                      editor.chain().focus().toggleOrderedList().run()
+                  onPointerDown={alTocar('chips', () => { if (!editor.isActive('orderedList')) {
+                      editor.chain().toggleOrderedList().run()
                     }
-                    editor.chain().focus().updateAttributes('orderedList', { listStyle: e.id }).run()
-                    setPanelFormato('ninguno')
-                  }}
+                    editor.chain().updateAttributes('orderedList', { listStyle: e.id }).run()
+                    setPanelFormato('ninguno') })} onClick={alTocar('chips', () => { if (!editor.isActive('orderedList')) {
+                      editor.chain().toggleOrderedList().run()
+                    }
+                    editor.chain().updateAttributes('orderedList', { listStyle: e.id }).run()
+                    setPanelFormato('ninguno') })}
                   style={{
                     padding: '6px 10px',
                     borderRadius: '999px',
@@ -2699,10 +2822,9 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                   key={c}
                   type="button"
                   title={`Color ${c}`}
-                  onPointerDown={(e) => { e.preventDefault();
-                    editor.chain().focus().setColor(c).run()
-                    setPanelFormato('ninguno')
-                  }}
+                  onPointerDown={alTocar('swatch-color', () => { editor.chain().setColor(c).run()
+                    setPanelFormato('ninguno') })} onClick={alTocar('swatch-color', () => { editor.chain().setColor(c).run()
+                    setPanelFormato('ninguno') })}
                   style={{
                     width: '26px',
                     height: '26px',
@@ -2716,10 +2838,9 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               ))}
               <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault();
-                  editor.chain().focus().unsetColor().run()
-                  setPanelFormato('ninguno')
-                }}
+                onPointerDown={alTocar('sin-color', () => { editor.chain().unsetColor().run()
+                  setPanelFormato('ninguno') })} onClick={alTocar('sin-color', () => { editor.chain().unsetColor().run()
+                  setPanelFormato('ninguno') })}
                 style={{
                   padding: '5px 10px',
                   borderRadius: '999px',
@@ -2744,10 +2865,9 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                   key={c}
                   type="button"
                   title={`Resaltar ${c}`}
-                  onPointerDown={(e) => { e.preventDefault();
-                    editor.chain().focus().setHighlight({ color: c }).run()
-                    setPanelFormato('ninguno')
-                  }}
+                  onPointerDown={alTocar('swatch-resaltado', () => { editor.chain().setHighlight({ color: c }).run()
+                    setPanelFormato('ninguno') })} onClick={alTocar('swatch-resaltado', () => { editor.chain().setHighlight({ color: c }).run()
+                    setPanelFormato('ninguno') })}
                   style={{
                     width: '26px',
                     height: '26px',
@@ -2761,10 +2881,9 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               ))}
               <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault();
-                  editor.chain().focus().unsetHighlight().run()
-                  setPanelFormato('ninguno')
-                }}
+                onPointerDown={alTocar('sin-resaltado', () => { editor.chain().unsetHighlight().run()
+                  setPanelFormato('ninguno') })} onClick={alTocar('sin-resaltado', () => { editor.chain().unsetHighlight().run()
+                  setPanelFormato('ninguno') })}
                 style={{
                   padding: '5px 10px',
                   borderRadius: '999px',
@@ -2805,16 +2924,21 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               />
               <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault();
-                  const url = urlEnlace.trim()
+                onPointerDown={alTocar('aplicar-enlace', () => { const url = urlEnlace.trim()
                   if (!url) {
-                    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                    editor.chain().extendMarkRange('link').unsetLink().run()
                   } else {
                     const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
-                    editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+                    editor.chain().extendMarkRange('link').setLink({ href }).run()
                   }
-                  setPanelFormato('ninguno')
-                }}
+                  setPanelFormato('ninguno') })} onClick={alTocar('aplicar-enlace', () => { const url = urlEnlace.trim()
+                  if (!url) {
+                    editor.chain().extendMarkRange('link').unsetLink().run()
+                  } else {
+                    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
+                    editor.chain().extendMarkRange('link').setLink({ href }).run()
+                  }
+                  setPanelFormato('ninguno') })}
                 style={{
                   height: '32px',
                   padding: '0 12px',
@@ -2834,10 +2958,9 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               {editor.isActive('link') && (
                 <button
                   type="button"
-                  onPointerDown={(e) => { e.preventDefault();
-                    editor.chain().focus().extendMarkRange('link').unsetLink().run()
-                    setPanelFormato('ninguno')
-                  }}
+                  onPointerDown={alTocar('quitar-enlace', () => { editor.chain().extendMarkRange('link').unsetLink().run()
+                    setPanelFormato('ninguno') })} onClick={alTocar('quitar-enlace', () => { editor.chain().extendMarkRange('link').unsetLink().run()
+                    setPanelFormato('ninguno') })}
                   style={{
                     height: '32px',
                     padding: '0 10px',
@@ -3995,6 +4118,26 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
           proyecto={proyectoActual}
           secciones={secciones}
           onClose={() => setExportarPDFModalAbierto(false)}
+        />
+      )}
+
+      {/* Modal de Publicación directa en la Academia del Espíritu */}
+      {publicarAcademiaAbierto && (
+        <PublicarAcademiaModal
+          proyectoId={proyectoActual.id}
+          titulo={proyectoActual.title}
+          secciones={secciones}
+          onClose={() => setPublicarAcademiaAbierto(false)}
+          onPublicado={(curso) => {
+            const estado: EstadoPublicacionAcademia = {
+              publicado: true,
+              fechaPublicacion: curso.updated_at || curso.created_at || new Date().toISOString(),
+              cursoId: curso.id,
+              cursoTitulo: curso.titulo
+            }
+            setEstadoPublicacion(estado)
+            guardarEstadoPublicacion(proyectoActual.id, estado)
+          }}
         />
       )}
 

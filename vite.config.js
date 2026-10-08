@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { cloudflare } from "@cloudflare/vite-plugin";
 
 const isCapacitor = process.env.BUILD_TARGET === 'capacitor'
+const isLocal = process.env.BUILD_LOCAL === '1'
 
 export default defineConfig({
   server: {
@@ -16,6 +17,10 @@ export default defineConfig({
     port: 3000,
   },
   base: isCapacitor ? './' : '/',
+  define: {
+    // Sabor LemWriter Local: BUILD_LOCAL=1 solo en el flujo de la APK local
+    'import.meta.env.VITE_LOCAL': JSON.stringify(isLocal ? '1' : '')
+  },
   build: isCapacitor
     ? { outDir: 'dist', emptyOutDir: true }
     : {},

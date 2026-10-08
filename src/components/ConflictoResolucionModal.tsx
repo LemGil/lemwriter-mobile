@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { resolveConflict } from '../lib/offlineStore'
+import { resolveConflict } from '../lib/dataStore'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 

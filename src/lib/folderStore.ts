@@ -348,18 +348,28 @@ export class FolderStore {
     return nombre
   }
 
-  async crearProyecto(tipo: string, titulo: string, estado = 'en_progreso'): Promise<FolderProyecto> {
+  async crearProyecto(
+    tipo: string,
+    titulo: string,
+    estado = 'en_progreso',
+    opciones?: { id?: string; fecha_creacion?: string; ultima_actualizacion?: string }
+  ): Promise<FolderProyecto> {
     const carpetaTipo = TIPO_A_CARPETA[tipo]
     if (!carpetaTipo) throw new Error(`Tipo desconocido: ${tipo}`)
     await this.asegurarEstructura()
+    if (opciones?.id) {
+      // Idempotente: si el proyecto ya existe en carpetas, se devuelve tal cual
+      const existente = await this.buscarProyecto(opciones.id)
+      if (existente) return existente
+    }
     const nombre = await this.carpetaLibre(carpetaTipo, toSlug(titulo))
     const proyecto: FolderProyecto = {
-      id: nuevoId('local_proj'),
+      id: opciones?.id ?? nuevoId('local_proj'),
       titulo,
       tipo,
       estado,
-      fecha_creacion: hoy(),
-      ultima_actualizacion: hoy(),
+      fecha_creacion: opciones?.fecha_creacion ?? hoy(),
+      ultima_actualizacion: opciones?.ultima_actualizacion ?? hoy(),
       carpeta: `${carpetaTipo}/${nombre}`,
     }
     await this.fs.mkdir(`${this.raiz}/${proyecto.carpeta}/imagenes`)
@@ -438,6 +448,67 @@ export class FolderStore {
     return actualizado
   }
 
+  // Cambia título, tipo y/o estado del proyecto. Si cambian el título o el
+  // tipo, la carpeta se renombra o se mueve a la carpeta del nuevo tipo, y
+  // las fichas de los .md se reescriben con los datos nuevos.
+  async actualizarProyecto(
+    id: string,
+    cambios: { titulo?: string; tipo?: string; estado?: string }
+  ): Promise<FolderProyecto> {
+    const p = await this.buscarProyecto(id)
+    if (!p) throw new Error(`Proyecto no encontrado: ${id}`)
+    const nuevoTitulo = cambios.titulo ?? p.titulo
+    const nuevoTipo = cambios.tipo && TIPO_A_CARPETA[cambios.tipo] ? cambios.tipo : p.tipo
+    const carpetaTipoDestino = TIPO_A_CARPETA[nuevoTipo]
+    const carpetaTipoActual = p.carpeta.split('/')[0]
+    let carpetaDestino = p.carpeta
+    if (nuevoTitulo !== p.titulo || carpetaTipoDestino !== carpetaTipoActual) {
+      const base = toSlug(nuevoTitulo) || p.carpeta.split('/')[1]
+      if (`${carpetaTipoDestino}/${base}` !== p.carpeta) {
+        const nombre = await this.carpetaLibre(carpetaTipoDestino, base)
+        carpetaDestino = `${carpetaTipoDestino}/${nombre}`
+        await this.fs.rename(`${this.raiz}/${p.carpeta}`, `${this.raiz}/${carpetaDestino}`)
+      }
+    }
+    const actualizado: FolderProyecto = {
+      ...p,
+      titulo: nuevoTitulo,
+      tipo: nuevoTipo,
+      estado: cambios.estado ?? p.estado,
+      carpeta: carpetaDestino,
+      ultima_actualizacion: hoy(),
+    }
+    await this.escribirProyecto(actualizado)
+    if (nuevoTitulo !== p.titulo || nuevoTipo !== p.tipo) {
+      await this.refrescarFichas(actualizado)
+    }
+    return actualizado
+  }
+
+  // Reescribe `tipo:` y `titulo:` en la ficha (frontmatter) de cada .md del
+  // proyecto, sin tocar el cuerpo.
+  private async refrescarFichas(p: FolderProyecto): Promise<void> {
+    let nombres: string[] = []
+    try {
+      nombres = await this.fs.readdir(`${this.raiz}/${p.carpeta}`)
+    } catch {
+      return
+    }
+    for (const nombre of nombres) {
+      if (!/^\d{2}-.+\.md$/.test(nombre)) continue
+      const ruta = `${this.raiz}/${p.carpeta}/${nombre}`
+      const crudo = await this.fs.readFile(ruta)
+      if (!crudo.startsWith('---')) continue
+      const cierre = crudo.indexOf('\n---', 3)
+      if (cierre < 0) continue
+      const cabeza = crudo
+        .slice(0, cierre)
+        .replace(/^tipo:.*$/m, `tipo: ${p.tipo}`)
+        .replace(/^titulo:.*$/m, `titulo: ${JSON.stringify(p.titulo)}`)
+      await this.fs.writeFile(ruta, cabeza + crudo.slice(cierre))
+    }
+  }
+
   async eliminarProyecto(id: string): Promise<void> {
     const p = await this.buscarProyecto(id)
     if (!p) return
@@ -480,7 +551,7 @@ export class FolderStore {
     if (!p) throw new Error(`Proyecto no encontrado: ${proyectoId}`)
     const existentes = await this.listarSecciones(proyectoId)
     const previa = seccion.id ? existentes.find((s) => s.id === seccion.id) : undefined
-    const id = previa?.id ?? nuevoId('local_sec')
+    const id = previa?.id ?? seccion.id ?? nuevoId('local_sec')
     const orden = previa?.orden ?? existentes.length + 1
     const cuerpoMd = htmlToMarkdown(seccion.contentHtml)
     const archivo = `${num2(orden)}-${toSlug(seccion.titulo) || 'seccion'}.md`

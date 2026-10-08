@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
-import { EditConflict } from '../lib/offlineStore'
+import { EditConflict } from '../lib/dataStore'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
 
 export const OfflineIndicator: React.FC = () => {
@@ -17,7 +17,7 @@ export const OfflineIndicator: React.FC = () => {
       <div
         style={{
           position: 'fixed',
-          bottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
+          bottom: '16px',
           left: '16px',
           zIndex: 90,
           display: 'flex',

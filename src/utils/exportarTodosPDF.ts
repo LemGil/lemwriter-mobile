@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import { Proyecto } from '../types'
 import { Seccion } from '../components/Editor'
 import { supabase } from '../lib/supabase'
-import { getOfflineProjects, getOfflineSections, saveOrUpdateOfflineProject, saveOfflineSections } from '../lib/offlineStore'
+import { getOfflineProjects, getOfflineSections, saveOrUpdateOfflineProject, saveOfflineSections } from '../lib/dataStore'
 import { generarHTMLMinisterial } from './exportarPDF'
 
 export interface ProyectoConSecciones {

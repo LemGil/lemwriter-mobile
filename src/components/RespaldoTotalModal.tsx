@@ -15,16 +15,11 @@ import {
   getStorageQuotaInfo,
   requestPersistentStorage,
   StorageQuotaInfo
-} from '../lib/offlineStore'
+} from '../lib/dataStore'
 import { ObsidianVaultSetup } from './settings/ObsidianVaultSetup'
 import { LocalTestPanel } from './settings/LocalTestPanel'
-import {
-  isFileSystemAccessSupported,
-  getVaultStatus,
-  requestAndSaveVaultFolder,
-  ensureVaultStructure
-} from '../services/obsidianFsService'
-import { OBSIDIAN_CARPETAS, buildEstructuraObsidianZip } from '../services/exportObsidianService'
+import { MigracionLocalPanel } from './settings/MigracionLocalPanel'
+import { ES_LOCAL } from '../lib/flavor'
 
 interface RespaldoTotalModalProps {
   onClose: () => void
@@ -39,8 +34,6 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
   const [progresoCarga, setProgresoCarga] = useState({ actual: 0, total: 0 })
   const [items, setItems] = useState<ProyectoConSecciones[]>([])
   const [opcionActiva, setOpcionActiva] = useState<'compendio' | 'zip' | 'backup' | 'obsidian'>('compendio')
-  const [creandoEstructura, setCreandoEstructura] = useState(false)
-  const [descargandoEstructura, setDescargandoEstructura] = useState(false)
 
   // Opciones de configuración de PDF
   const [tamanoLetra, setTamanoLetra] = useState<'normal' | 'grande' | 'pulpito'>('normal')
@@ -210,46 +203,6 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
     } finally {
       setRestaurando(false)
       if (inputFileRef.current) inputFileRef.current.value = ''
-    }
-  }
-
-  // ── Estructura de carpetas de Obsidian ──────────────────────────────────────
-
-  const handleCrearEstructura = async () => {
-    setCreandoEstructura(true)
-    try {
-      if ((await getVaultStatus()) !== 'connected') {
-        const granted = await requestAndSaveVaultFolder()
-        if (!granted) {
-          toast.error('No se autorizó la carpeta del vault')
-          return
-        }
-      }
-      const { creadas, ok } = await ensureVaultStructure(OBSIDIAN_CARPETAS)
-      if (ok) {
-        toast.success(
-          creadas.length > 0
-            ? `Carpetas creadas: ${creadas.join(', ')}`
-            : 'La estructura de carpetas ya existía'
-        )
-      } else {
-        toast.error('No se pudo crear la estructura de carpetas')
-      }
-    } finally {
-      setCreandoEstructura(false)
-    }
-  }
-
-  const handleDescargarEstructura = async () => {
-    setDescargandoEstructura(true)
-    try {
-      const zip = await buildEstructuraObsidianZip()
-      await descargarOCompartirBlob(zip, 'estructura-obsidian-lemwriter.zip', 'Estructura Obsidian LemWriter')
-      toast.success('ZIP listo: descomprímelo dentro de tu vault de Obsidian')
-    } catch {
-      toast.error('No se pudo generar el ZIP')
-    } finally {
-      setDescargandoEstructura(false)
     }
   }
 
@@ -1005,83 +958,8 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
                   </div>
 
                   <ObsidianVaultSetup />
-                   <LocalTestPanel />
-
-                  {/* ESTRUCTURA DE CARPETAS */}
-                  <div style={{
-                    background: 'rgba(20, 43, 55, 0.6)',
-                    border: '1px solid rgba(201, 162, 74, 0.25)',
-                    borderRadius: '10px',
-                    padding: '14px'
-                  }}>
-                    <h3 style={{
-                      color: '#DFBE72',
-                      fontFamily: "'Cinzel', Georgia, serif",
-                      fontSize: '15px',
-                      fontWeight: 600,
-                      margin: '0 0 8px 0'
-                    }}>
-                      📁 Estructura de carpetas
-                    </h3>
-                    <p style={{
-                      color: '#BDC7CC',
-                      fontSize: '13px',
-                      lineHeight: 1.45,
-                      margin: '0 0 12px 0'
-                    }}>
-                      Crea las carpetas por categoría (<code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px', color: '#DFBE72' }}>sermones/</code>, <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px', color: '#DFBE72' }}>ensenanzas/</code>, <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px', color: '#DFBE72' }}>devocionales/</code>, etc.) dentro de tu vault. Las que ya existan se conservan intactas.
-                    </p>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {isFileSystemAccessSupported() && (
-                        <button
-                          type="button"
-                          onClick={handleCrearEstructura}
-                          disabled={creandoEstructura}
-                          style={{
-                            background: 'linear-gradient(135deg, #C9A24A 0%, #A8823A 100%)',
-                            border: 'none',
-                            color: '#122834',
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            cursor: creandoEstructura ? 'wait' : 'pointer',
-                            fontWeight: 700,
-                            opacity: creandoEstructura ? 0.7 : 1
-                          }}
-                        >
-                          {creandoEstructura ? 'Creando…' : '📁 Crear carpetas en mi vault'}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleDescargarEstructura}
-                        disabled={descargandoEstructura}
-                        style={{
-                          background: 'rgba(30, 61, 79, 0.8)',
-                          border: '1px solid rgba(201, 162, 74, 0.4)',
-                          color: '#DFBE72',
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          cursor: descargandoEstructura ? 'wait' : 'pointer',
-                          fontWeight: 600,
-                          opacity: descargandoEstructura ? 0.7 : 1
-                        }}
-                      >
-                        {descargandoEstructura ? 'Generando…' : '🗜️ Descargar ZIP con la estructura'}
-                      </button>
-                    </div>
-                    {!isFileSystemAccessSupported() && (
-                      <p style={{
-                        color: '#8E9EA7',
-                        fontSize: '12px',
-                        lineHeight: 1.45,
-                        margin: '10px 0 0 0'
-                      }}>
-                        En el teléfono el navegador no permite crear carpetas directamente: descarga el ZIP y descomprímelo dentro de tu vault de Obsidian.
-                      </p>
-                    )}
-                  </div>
+                  <LocalTestPanel />
+                  {ES_LOCAL && <MigracionLocalPanel />}
                 </div>
               )}
             </>
