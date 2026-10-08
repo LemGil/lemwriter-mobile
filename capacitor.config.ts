@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
-  appId: 'com.lemgil.lemwriter',
-  appName: 'LemWriter',
+  appId: 'process.env.BUILD_LOCAL ---',
+  appName: 'process.env.BUILD_LOCAL ---',
   webDir: 'dist',
   plugins: {
     SpeechRecognition: {}
