@@ -1,8 +1,13 @@
-
 # Compila la APK de LemWriter Local en GitHub (sin depender de la PC).
 # Uso: pestaña Actions → "Construir APK LemWriter Local" → Run workflow.
 # Al terminar, la APK queda en "Artifacts" de la corrida para descargar
 # desde la PC o desde el móvil.
+#
+# FIRMA FIJA: la APK se firma siempre con la misma clave (secreto
+# ANDROID_KEYSTORE del repositorio), así cada versión nueva se instala
+# ENCIMA de la anterior sin desinstalar. Secretos necesarios:
+# ANDROID_KEYSTORE (keystore en base64), ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
 name: Construir APK LemWriter Local
 
 on:
@@ -47,9 +52,34 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
+      - name: Preparar la clave de firma fija
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Falta el secreto ANDROID_KEYSTORE en el repositorio"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/lemwriter-local.keystore"
+
+      - name: Firmar la APK con la clave fija
+        env:
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          BT=$(ls "$ANDROID_SDK_ROOT/build-tools" | sort -V | tail -1)
+          "$ANDROID_SDK_ROOT/build-tools/$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/lemwriter-local.keystore" \
+            --ks-pass "env:STORE_PASS" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --key-pass "env:KEY_PASS" \
+            --out android/app/build/outputs/apk/debug/app-debug-firmada.apk \
+            android/app/build/outputs/apk/debug/app-debug.apk
+
       - name: Subir la APK como artefacto descargable
         uses: actions/upload-artifact@v4
         with:
           name: LemWriter-Local-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug-firmada.apk
           if-no-files-found: error
