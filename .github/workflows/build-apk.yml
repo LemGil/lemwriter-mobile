@@ -1,1 +1,55 @@
 
+# Compila la APK de LemWriter Local en GitHub (sin depender de la PC).
+# Uso: pestaña Actions → "Construir APK LemWriter Local" → Run workflow.
+# Al terminar, la APK queda en "Artifacts" de la corrida para descargar
+# desde la PC o desde el móvil.
+name: Construir APK LemWriter Local
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'local-v*'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Preparar Java (para Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Instalar dependencias
+        run: npm ci || npm install
+
+      - name: Compilar la web (sabor Local)
+        env:
+          BUILD_TARGET: capacitor
+          BUILD_LOCAL: '1'
+        run: npm run build:capacitor
+
+      - name: Sincronizar Capacitor (appId Local)
+        env:
+          BUILD_LOCAL: '1'
+        run: npx cap sync android
+
+      - name: Compilar la APK (debug)
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Subir la APK como artefacto descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: LemWriter-Local-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
