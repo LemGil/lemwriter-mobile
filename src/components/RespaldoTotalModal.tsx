@@ -17,7 +17,7 @@ import {
   StorageQuotaInfo
 } from '../lib/offlineStore'
 import { ObsidianVaultSetup } from './settings/ObsidianVaultSetup'
-import { LocalTestPanel } from './settings/LocalTestPanel '
+import { LocalTestPanel } from './settings/LocalTestPanel'
 import {
   isFileSystemAccessSupported,
   getVaultStatus,
