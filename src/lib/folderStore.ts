@@ -118,6 +118,62 @@ const CALLOUT_TITULO: Record<string, string> = {
   nota: 'Nota Ministerial',
 }
 
+// ─── Numeración de listas (ida y vuelta HTML ⇄ Markdown) ────────────────────
+// El estilo de la lista viaja en el .md con su propio marcador
+// (I. / i. / A. / a.), para que al reabrir la sección se vea igual
+// que en el editor y el archivo se lea bien en cualquier editor de texto.
+
+function romano(n: number): string {
+  const tabla: [number, string][] = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
+    [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ]
+  let r = ''
+  for (const [v, s] of tabla) {
+    while (n >= v) {
+      r += s
+      n -= v
+    }
+  }
+  return r
+}
+
+function letras(n: number): string {
+  // 1→A, 26→Z, 27→AA
+  let r = ''
+  while (n > 0) {
+    r = String.fromCharCode(65 + ((n - 1) % 26)) + r
+    n = Math.floor((n - 1) / 26)
+  }
+  return r
+}
+
+function marcadorNumeracion(estilo: string, i: number): string {
+  switch (estilo) {
+    case 'upper-roman':
+      return `${romano(i)}.`
+    case 'lower-roman':
+      return `${romano(i).toLowerCase()}.`
+    case 'upper-alpha':
+      return `${letras(i)}.`
+    case 'lower-alpha':
+      return `${letras(i).toLowerCase()}.`
+    default:
+      return `${i}.`
+  }
+}
+
+const ESTILOS_LISTA_MD = ['upper-roman', 'lower-roman', 'upper-alpha', 'lower-alpha']
+
+// Si la línea abre una lista con estilo («A. », «I. », «a. », «i. »), devuelve
+// el estilo; si no, null. La corrida completa se valida al consumirla.
+function estiloDeLineaLista(trim: string): string | null {
+  for (const estilo of ESTILOS_LISTA_MD) {
+    if (trim.startsWith(marcadorNumeracion(estilo, 1) + ' ')) return estilo
+  }
+  return null
+}
+
 function stripTags(html: string): string {
   return (html || '').replace(/<[^>]+>/g, '')
 }
@@ -150,12 +206,13 @@ export function htmlToMarkdown(html: string | undefined | null): string {
   md = md.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (_m, t) => `### ${stripTags(t).trim()}\n\n`)
   md = md.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, (_m, t) => `#### ${stripTags(t).trim()}\n\n`)
 
-  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_m, inner) => {
+  md = md.replace(/<ol([^>]*)>([\s\S]*?)<\/ol>/gi, (_m, attrs, inner) => {
+    const estilo = (/data-list-style=["']([\w-]+)["']/i.exec(attrs) || [])[1] || 'decimal'
     let i = 0
     return (
       inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_2: string, item: string) => {
         i++
-        return `${i}. ${stripTags(htmlToMarkdown(item)).trim()}\n`
+        return `${marcadorNumeracion(estilo, i)} ${stripTags(htmlToMarkdown(item)).trim()}\n`
       }) + '\n'
     )
   })
@@ -261,11 +318,32 @@ export function markdownToHtml(md: string | undefined | null): string {
       out.push(ordenada ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`)
       continue
     }
+    const estiloLista = estiloDeLineaLista(trim)
+    if (estiloLista) {
+      // Lista con estilo (I. / A. / a. / i.): se consume la corrida validando
+      // la secuencia; con un solo renglón suelto no es lista, es párrafo.
+      const items: string[] = []
+      let j = i
+      let n = 0
+      while (j < lineas.length) {
+        const l = lineas[j].trim()
+        const esperado = marcadorNumeracion(estiloLista, n + 1) + ' '
+        if (!l.startsWith(esperado)) break
+        items.push(`<li>${inlineMdAHtml(l.slice(esperado.length).trim())}</li>`)
+        n++
+        j++
+      }
+      if (items.length >= 2) {
+        out.push(`<ol data-list-style="${estiloLista}">${items.join('')}</ol>`)
+        i = j
+        continue
+      }
+    }
     // Párrafo: líneas consecutivas no especiales
     const par: string[] = []
     while (i < lineas.length) {
       const l = lineas[i].trim()
-      if (!l || /^(#{1,4})\s/.test(l) || l === '---' || l.startsWith('>') || /^- /.test(l) || /^\d+\. /.test(l)) break
+      if (!l || /^(#{1,4})\s/.test(l) || l === '---' || l.startsWith('>') || /^- /.test(l) || /^\d+\. /.test(l) || (par.length > 0 && estiloDeLineaLista(l))) break
       par.push(l)
       i++
     }

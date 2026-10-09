@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   VersionBiblia,
   VERSIONES_BIBLIA,
@@ -10,7 +10,7 @@ import {
   etiquetaReferencia,
   parsearReferencia,
 } from '../biblia/bibliaService'
-import { cargarLeidos, alternarLeido, conteoPorLibro, claveCapitulo } from '../biblia/progresoLectura'
+import { cargarLeidos, alternarLeido, conteoPorLibro, claveCapitulo, reiniciarLeidos, sincronizarLeidosDesdeNube, respaldarCambioEnNube, borrarProgresoEnNube } from '../biblia/progresoLectura'
 
 // Vista de LECTURA bíblica (pestaña Biblia). Pensada para leer la Biblia seguida,
 // marcar capítulos como leídos y ver el avance — no como buscador (eso queda en el
@@ -20,6 +20,19 @@ import { cargarLeidos, alternarLeido, conteoPorLibro, claveCapitulo } from '../b
 type Pantalla = 'inicio' | 'capitulos' | 'leyendo'
 
 const CLAVE_ESTADO = 'lw_biblia_estado'
+
+// Modo Leer: pantalla completa para leer seguido, con tamaño de letra y temas.
+// Las preferencias se guardan en el dispositivo y se recuerdan entre sesiones.
+type TemaLectura = 'noche' | 'dia' | 'sepia'
+const CLAVE_TEMA_LECTURA = 'lw_biblia_tema_lectura'
+const CLAVE_LETRA = 'lw_biblia_letra'
+const LETRA_MIN = 15
+const LETRA_MAX = 32
+const TEMAS_LECTURA: Record<TemaLectura, { fondo: string; texto: string; suave: string; acento: string; borde: string }> = {
+  noche: { fondo: '#101E29', texto: '#EDF3F7', suave: '#9BB0BD', acento: '#DFBE72', borde: 'rgba(201, 162, 74, 0.35)' },
+  dia: { fondo: '#F7F3EA', texto: '#26333D', suave: '#7A6A4F', acento: '#9A7B2D', borde: 'rgba(154, 123, 45, 0.45)' },
+  sepia: { fondo: '#EAE1D0', texto: '#4A3B28', suave: '#8A7350', acento: '#8A6D2F', borde: 'rgba(138, 109, 47, 0.45)' },
+}
 
 function posicionGuardada(version: VersionBiblia): { codigo: string; capitulo: number } {
   try {
@@ -57,10 +70,45 @@ export const BibliaVista: React.FC = () => {
   const [cargando, setCargando] = useState<boolean>(false)
   const [errorCarga, setErrorCarga] = useState<string>('')
   const [leidos, setLeidos] = useState<Set<string>>(() => cargarLeidos())
+
+  // Al abrir la Biblia: unir las marcas locales con las de la cuenta, para
+  // continuar la lectura en cualquier teléfono con la misma sesión.
+  useEffect(() => {
+    let vivo = true
+    sincronizarLeidosDesdeNube()
+      .then((unidos) => {
+        if (vivo) setLeidos(unidos)
+      })
+      .catch(() => {
+        /* sin nube disponible: se quedan las marcas locales */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [])
   const [testamento, setTestamento] = useState<'AT' | 'NT'>('AT')
   const [seleccion, setSeleccion] = useState<number[]>([])
   const [aviso, setAviso] = useState<string>('')
   const [salto, setSalto] = useState<string>('')
+  const [confirmandoReinicio, setConfirmandoReinicio] = useState<boolean>(false)
+  const [modoLeer, setModoLeer] = useState<boolean>(false)
+  const [temaLectura, setTemaLectura] = useState<TemaLectura>(() => {
+    try {
+      const t = localStorage.getItem(CLAVE_TEMA_LECTURA)
+      return t === 'dia' || t === 'sepia' ? t : 'noche'
+    } catch {
+      return 'noche'
+    }
+  })
+  const [letra, setLetra] = useState<number>(() => {
+    try {
+      const n = parseInt(localStorage.getItem(CLAVE_LETRA) || '', 10)
+      return Number.isFinite(n) ? Math.min(LETRA_MAX, Math.max(LETRA_MIN, n)) : 19
+    } catch {
+      return 19
+    }
+  })
+  const leerRef = useRef<HTMLDivElement>(null)
 
   const metas = useMemo(() => librosDe(version), [version])
   const nombreActual = useMemo(() => nombreLibro(version, codigo), [version, codigo])
@@ -106,6 +154,29 @@ export const BibliaVista: React.FC = () => {
     window.scrollTo({ top: 0 })
   }, [pantalla, version, codigo, capitulo])
 
+  // Recordar tema y tamaño de letra del modo Leer
+  useEffect(() => {
+    try {
+      localStorage.setItem(CLAVE_TEMA_LECTURA, temaLectura)
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }, [temaLectura])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CLAVE_LETRA, String(letra))
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }, [letra])
+
+  // En modo Leer, cada capítulo nuevo empieza arriba
+  useEffect(() => {
+    const cont = leerRef.current
+    if (modoLeer && cont && typeof cont.scrollTo === 'function') cont.scrollTo({ top: 0 })
+  }, [modoLeer, codigo, capitulo])
+
   const abrirLibro = (nuevoCodigo: string) => {
     setCodigo(nuevoCodigo)
     setPantalla('capitulos')
@@ -136,6 +207,7 @@ export const BibliaVista: React.FC = () => {
     const yaLeido = leidos.has(claveCapitulo(codigo, capitulo))
     if (yaLeido !== nuevoEstado) {
       setLeidos(alternarLeido(leidos, codigo, capitulo))
+      void respaldarCambioEnNube(claveCapitulo(codigo, capitulo), nuevoEstado)
     }
   }
 
@@ -186,6 +258,22 @@ export const BibliaVista: React.FC = () => {
     const capMax = totalCapitulos(version, ref.codigo)
     leerCapitulo(ref.codigo, Math.min(Math.max(1, ref.capitulo), capMax))
     setSalto('')
+  }
+
+  // Borra las marcas de leídos y vuelve a Génesis 1 para leer la Biblia otra vez.
+  const reiniciarLectura = () => {
+    setLeidos(reiniciarLeidos())
+    void borrarProgresoEnNube()
+    setCodigo('GEN')
+    setCapitulo(1)
+    try {
+      localStorage.setItem(CLAVE_ESTADO, JSON.stringify({ version, codigo: 'GEN', capitulo: 1 }))
+    } catch {
+      /* almacenamiento no disponible */
+    }
+    setConfirmandoReinicio(false)
+    setAviso('📖 Lectura reiniciada: marcas borradas. ¡A empezar de nuevo!')
+    setTimeout(() => setAviso(''), 3500)
   }
 
   const estiloPill = (activo: boolean): React.CSSProperties => ({
@@ -251,6 +339,21 @@ export const BibliaVista: React.FC = () => {
     )
   }
 
+  const tema = TEMAS_LECTURA[temaLectura]
+  const botonLectura = (activo: boolean): React.CSSProperties => ({
+    height: '32px',
+    padding: '0 11px',
+    borderRadius: '999px',
+    border: `1px solid ${tema.borde}`,
+    background: activo ? tema.acento : 'transparent',
+    color: activo ? tema.fondo : tema.texto,
+    fontSize: '12px',
+    fontWeight: 700,
+    fontFamily: "'Inter', sans-serif",
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  })
+
   return (
     <div style={{ paddingBottom: '104px' }}>
       {/* Versión + continuar */}
@@ -286,6 +389,45 @@ export const BibliaVista: React.FC = () => {
             >
               ▶ Continuar en {nombreActual} {capitulo}
             </button>
+            {totalLeidos > 0 && !confirmandoReinicio && (
+              <button
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  height: '34px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(155, 176, 189, 0.3)',
+                  background: 'transparent',
+                  color: '#9BB0BD',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  fontFamily: "'Inter', sans-serif",
+                  cursor: 'pointer',
+                }}
+                onClick={() => setConfirmandoReinicio(true)}
+                title="Borrar las marcas de capítulos leídos y volver a Génesis 1"
+              >
+                ↺ Reiniciar lectura
+              </button>
+            )}
+            {confirmandoReinicio && (
+              <div style={{ marginTop: '10px', padding: '10px', borderRadius: '8px', border: '1px solid rgba(242, 160, 160, 0.45)', background: 'rgba(120, 40, 40, 0.18)' }}>
+                <div style={{ color: '#F2C9C9', fontSize: '12px', fontFamily: "'Inter', sans-serif", lineHeight: 1.5, marginBottom: '8px' }}>
+                  Se borrarán las marcas de los <strong>{totalLeidos}</strong> capítulos leídos y volverás a <strong>Génesis 1</strong> para leer la Biblia otra vez. Los textos no se tocan.
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    style={{ flex: 1, height: '36px', borderRadius: '8px', border: 'none', background: 'rgba(214, 96, 96, 0.85)', color: '#FFFFFF', fontSize: '12px', fontWeight: 700, fontFamily: "'Inter', sans-serif", cursor: 'pointer' }}
+                    onClick={reiniciarLectura}
+                  >
+                    Sí, reiniciar
+                  </button>
+                  <button style={{ ...estiloBoton, flex: 1, height: '36px' }} onClick={() => setConfirmandoReinicio(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Salto rápido a una referencia */}
@@ -396,6 +538,9 @@ export const BibliaVista: React.FC = () => {
             >
               {capituloLeido ? '✓ Leído' : '○ Marcar leído'}
             </button>
+            <button style={estiloBoton} onClick={() => setModoLeer(true)} title="Leer a pantalla completa, con tamaño de letra y temas noche/día">
+              📖 Leer
+            </button>
           </div>
 
           {cargando && <div style={{ color: '#9BB0BD', textAlign: 'center', padding: '24px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>Cargando…</div>}
@@ -503,6 +648,120 @@ export const BibliaVista: React.FC = () => {
               </div>
               <div style={{ color: '#8E9EA7', fontSize: '11px', fontFamily: "'Inter', sans-serif", marginTop: '10px', textAlign: 'center' }}>
                 Toca versículos para copiarlos. Para insertarlos en tu escrito, abre la Biblia desde el editor (botón Biblia).
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {modoLeer && (
+        <div
+          ref={leerRef}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: tema.fondo,
+            color: tema.texto,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {/* Barra del modo Leer */}
+          <div style={{ position: 'sticky', top: 0, background: tema.fondo, borderBottom: `1px solid ${tema.borde}`, padding: '10px 12px', zIndex: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '760px', margin: '0 auto' }}>
+              <button
+                onClick={() => setModoLeer(false)}
+                style={{ height: '34px', padding: '0 12px', borderRadius: '8px', border: `1px solid ${tema.borde}`, background: 'transparent', color: tema.texto, fontSize: '13px', fontWeight: 700, fontFamily: "'Inter', sans-serif", cursor: 'pointer' }}
+              >
+                ✕ Salir
+              </button>
+              <span style={{ flex: 1, textAlign: 'center', color: tema.acento, fontFamily: "'Cinzel', Georgia, serif", fontSize: '16px', fontWeight: 700 }}>
+                {nombreActual} {capitulo}
+              </span>
+              <span style={{ color: tema.suave, fontSize: '11px', fontFamily: "'Inter', sans-serif" }}>{versionCorta}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '760px', margin: '8px auto 0', flexWrap: 'wrap' }}>
+              <button style={botonLectura(false)} onClick={() => setLetra((n) => Math.max(LETRA_MIN, n - 1))} disabled={letra <= LETRA_MIN} aria-label="Letra más chica">
+                A−
+              </button>
+              <span style={{ color: tema.suave, fontSize: '12px', fontFamily: "'Inter', sans-serif", minWidth: '44px', textAlign: 'center' }}>{letra} px</span>
+              <button style={botonLectura(false)} onClick={() => setLetra((n) => Math.min(LETRA_MAX, n + 1))} disabled={letra >= LETRA_MAX} aria-label="Letra más grande">
+                A+
+              </button>
+              <span style={{ flex: 1 }} />
+              {(['noche', 'dia', 'sepia'] as TemaLectura[]).map((t) => (
+                <button key={t} style={botonLectura(temaLectura === t)} onClick={() => setTemaLectura(t)}>
+                  {t === 'noche' ? '🌙 Noche' : t === 'dia' ? '☀️ Día' : '📜 Sepia'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Texto corrido, como un libro */}
+          <div style={{ maxWidth: '760px', margin: '0 auto', padding: '20px 20px 12px', fontFamily: "'Crimson Pro', Georgia, serif", fontSize: `${letra}px`, lineHeight: 1.85 }}>
+            {cargando && (
+              <div style={{ textAlign: 'center', color: tema.suave, fontFamily: "'Inter', sans-serif", fontSize: '14px' }}>Cargando…</div>
+            )}
+            {errorCarga && (
+              <div style={{ textAlign: 'center', color: '#D66', fontFamily: "'Inter', sans-serif", fontSize: '14px' }}>{errorCarga}</div>
+            )}
+            {!cargando &&
+              !errorCarga &&
+              versiculos.map((texto, i) => (
+                <span key={i + 1}>
+                  <sup style={{ color: tema.acento, fontSize: '0.62em', fontWeight: 700, marginRight: '4px', fontFamily: "'Inter', sans-serif" }}>{i + 1}</sup>
+                  {texto}{' '}
+                </span>
+              ))}
+          </div>
+
+          {/* Navegación al final del capítulo */}
+          {!cargando && !errorCarga && (
+            <div style={{ maxWidth: '760px', margin: '0 auto', padding: '6px 20px 34px' }}>
+              {!capituloLeido ? (
+                <button
+                  onClick={marcarYContinuar}
+                  style={{ width: '100%', height: '48px', borderRadius: '10px', border: 'none', background: tema.acento, color: tema.fondo, fontSize: '14px', fontWeight: 700, fontFamily: "'Cinzel', serif", cursor: 'pointer' }}
+                >
+                  ✓ Marcar como leído{destinoSiguiente() ? ' y continuar →' : ''}
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const sig = destinoSiguiente()
+                    if (sig) leerCapitulo(sig.codigo, sig.capitulo)
+                  }}
+                  disabled={!destinoSiguiente()}
+                  style={{ width: '100%', height: '48px', borderRadius: '10px', border: `1px solid ${tema.borde}`, background: 'transparent', color: tema.acento, fontSize: '14px', fontWeight: 700, fontFamily: "'Cinzel', serif", cursor: destinoSiguiente() ? 'pointer' : 'default', opacity: destinoSiguiente() ? 1 : 0.5 }}
+                >
+                  ✓ Capítulo leído · Siguiente →
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                <button
+                  style={{ ...botonLectura(false), flex: 1, borderRadius: '8px', height: '38px' }}
+                  disabled={!destinoAnterior()}
+                  onClick={() => {
+                    const ant = destinoAnterior()
+                    if (ant) leerCapitulo(ant.codigo, ant.capitulo)
+                  }}
+                >
+                  ‹ Anterior
+                </button>
+                <button
+                  style={{ ...botonLectura(false), flex: 1, borderRadius: '8px', height: '38px' }}
+                  disabled={!destinoSiguiente()}
+                  onClick={() => {
+                    const sig = destinoSiguiente()
+                    if (sig) leerCapitulo(sig.codigo, sig.capitulo)
+                  }}
+                >
+                  Siguiente ›
+                </button>
+              </div>
+              <div style={{ color: tema.suave, fontSize: '11px', fontFamily: "'Inter', sans-serif", marginTop: '10px', textAlign: 'center' }}>
+                Modo Leer: para leer seguido, sin distracciones. Para copiar versículos, toca ✕ Salir.
               </div>
             </div>
           )}

@@ -30,6 +30,7 @@ import {
 } from '../lib/dataStore'
 import { ES_LOCAL } from '../lib/flavor'
 import { htmlATextoCompartible, compartirTextoPlano } from '../lib/compartirSeccion'
+import { compartirArchivo, seccionAImagenBlob, seccionAPdfBytes } from '../lib/compartirImagen'
 import { ExportarPDFModal } from './ExportarPDFModal'
 import { ModoLecturaModal, TemaLectura } from './ModoLecturaModal'
 import { SugerirTitulosModal } from './SugerirTitulosModal'
@@ -129,6 +130,8 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   const [panelFormato, setPanelFormato] = useState<'ninguno' | 'numeracion' | 'colorTexto' | 'resaltado' | 'enlace'>('ninguno')
   const [urlEnlace, setUrlEnlace] = useState('')
   const [pantallaCompleta, setPantallaCompleta] = useState(false)
+  const [menuCompartir, setMenuCompartir] = useState(false)
+  const [compartiendo, setCompartiendo] = useState<'' | 'texto' | 'imagen' | 'pdf'>('')
 
   // Estado de Conflictos de Edición
   const [conflictoActivo, setConflictoActivo] = useState<EditConflict | null>(null)
@@ -243,6 +246,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
 
   const handleCompartirSeccion = async () => {
     if (!seccionActiva) return
+    setCompartiendo('texto')
     try {
       const html = editor?.getHTML() || seccionActiva.content || ''
       const texto = htmlATextoCompartible(html, seccionActiva.title)
@@ -260,6 +264,51 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
       if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
         toast.error('No se pudo abrir el compartir')
       }
+    } finally {
+      setMenuCompartir(false)
+      setCompartiendo('')
+    }
+  }
+
+  const compartirComoImagen = async () => {
+    if (!seccionActiva) return
+    try {
+      setCompartiendo('imagen')
+      const html = editor?.getHTML() || seccionActiva.content || ''
+      if (!htmlATextoCompartible(html)) {
+        toast.error('La sección está vacía')
+        return
+      }
+      const blob = await seccionAImagenBlob(seccionActiva.title || 'Sección', html)
+      await compartirArchivo({ titulo: seccionActiva.title || 'Sección', extension: 'png', blob })
+      setMenuCompartir(false)
+    } catch (e) {
+      if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
+        toast.error('No se pudo crear la imagen')
+      }
+    } finally {
+      setCompartiendo('')
+    }
+  }
+
+  const compartirComoPdf = async () => {
+    if (!seccionActiva) return
+    try {
+      setCompartiendo('pdf')
+      const html = editor?.getHTML() || seccionActiva.content || ''
+      if (!htmlATextoCompartible(html)) {
+        toast.error('La sección está vacía')
+        return
+      }
+      const bytes = await seccionAPdfBytes(seccionActiva.title || 'Sección', html)
+      await compartirArchivo({ titulo: seccionActiva.title || 'Sección', extension: 'pdf', bytes })
+      setMenuCompartir(false)
+    } catch (e) {
+      if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
+        toast.error('No se pudo crear el PDF')
+      }
+    } finally {
+      setCompartiendo('')
     }
   }
 
@@ -1500,11 +1549,11 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
               <span>Enfoque</span>
             </button>
 
-            {/* 6. Botón Compartir sección (texto listo para pegar) */}
+            {/* 6. Botón Compartir sección (menú: texto, imagen o PDF) */}
             <button
-              onClick={handleCompartirSeccion}
-              title="Compartir esta sección como texto (WhatsApp, redes, correo…)"
-              aria-label="Compartir sección como texto"
+              onClick={() => seccionActiva && setMenuCompartir(true)}
+              title="Compartir esta sección (texto, imagen o PDF)"
+              aria-label="Compartir sección"
               style={{
                 height: '29px',
                 padding: '0 4px',
@@ -2821,7 +2870,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             {/* Limpiar formato (Tx) */}
             <button
               type="button"
-              onPointerDown={alTocar('tx', () => { editor.chain().unsetAllMarks().unsetTextAlign().run() })} onClick={alTocar('tx', () => { editor.chain().unsetAllMarks().unsetTextAlign().run() })}
+              onPointerDown={alTocar('tx', () => { editor.chain().clearNodes().unsetAllMarks().unsetTextAlign().run() })} onClick={alTocar('tx', () => { editor.chain().clearNodes().unsetAllMarks().unsetTextAlign().run() })}
               title="Limpiar formato del texto seleccionado (Tx)"
               style={{
                 padding: '6px 9px',
@@ -4440,6 +4489,114 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Menú Compartir: texto, imagen o PDF */}
+      {menuCompartir && seccionActiva && (
+        <div
+          onClick={() => !compartiendo && setMenuCompartir(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(3, 10, 16, 0.66)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            zIndex: 1200
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              background: '#122B37',
+              border: '1px solid rgba(201, 162, 74, 0.45)',
+              borderRadius: '16px 16px 0 0',
+              padding: '16px 16px 22px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ color: '#DFBE72', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
+              Compartir sección
+            </div>
+            <div style={{ color: '#9BB0BD', fontSize: '12px', marginBottom: '12px' }}>
+              «{seccionActiva.title}» — elige cómo sale:
+            </div>
+            {(
+              [
+                {
+                  id: 'texto' as const,
+                  icono: '📝',
+                  titulo: 'Texto',
+                  detalle: 'Listo para pegar; el texto se puede copiar',
+                  accion: handleCompartirSeccion
+                },
+                {
+                  id: 'imagen' as const,
+                  icono: '🖼️',
+                  titulo: 'Imagen',
+                  detalle: 'Se ve tal como está aquí; no se puede copiar',
+                  accion: compartirComoImagen
+                },
+                {
+                  id: 'pdf' as const,
+                  icono: '📄',
+                  titulo: 'PDF',
+                  detalle: 'Documento para leer e imprimir; no se puede copiar',
+                  accion: compartirComoPdf
+                }
+              ]
+            ).map((op) => (
+              <button
+                key={op.id}
+                type="button"
+                disabled={!!compartiendo}
+                onClick={op.accion}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  textAlign: 'left',
+                  padding: '12px',
+                  marginBottom: '8px',
+                  background: 'rgba(20, 43, 55, 0.9)',
+                  border: '1px solid rgba(201, 162, 74, 0.35)',
+                  borderRadius: '10px',
+                  color: '#F5F1E8',
+                  cursor: compartiendo ? 'wait' : 'pointer',
+                  opacity: compartiendo && compartiendo !== op.id ? 0.5 : 1
+                }}
+              >
+                <span style={{ fontSize: '22px', lineHeight: 1 }}>{op.icono}</span>
+                <span>
+                  <span style={{ display: 'block', fontWeight: 700, fontSize: '14px' }}>
+                    {compartiendo === op.id ? 'Preparando…' : op.titulo}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '12px', color: '#9BB0BD' }}>{op.detalle}</span>
+                </span>
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!!compartiendo}
+              onClick={() => setMenuCompartir(false)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: 'transparent',
+                border: '1px solid rgba(155,176,189,0.35)',
+                borderRadius: '10px',
+                color: '#9BB0BD',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
