@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- LemWriter Local: leer las carpetas de Documentos/LemWriter aunque
+         vengan de una instalación anterior (Android las "hereda" solo con
+         este permiso; en Android 13+ el usuario concede el acceso a todos
+         los archivos desde Ajustes). -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

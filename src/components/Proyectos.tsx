@@ -17,6 +17,11 @@ import {
   EditConflict
 } from '../lib/dataStore'
 import { ES_LOCAL } from '../lib/flavor'
+import {
+  pedirPermisoCarpetas,
+  avisoPermisoOculto,
+  ocultarAvisoPermiso
+} from '../lib/permisoCarpetas'
 import { SwipeableProjectCard } from './SwipeableProjectCard'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
 import { ImportarDocumentoModal } from './ImportarDocumentoModal'
@@ -79,6 +84,7 @@ export default function Proyectos({
   const queryClient = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
   const [importarAbierto, setImportarAbierto] = useState(false)
+  const [avisoPermisoCerrado, setAvisoPermisoCerrado] = useState(avisoPermisoOculto())
   const [nuevoTitulo, setNuevoTitulo] = useState('')
   const [nuevoTipo, setNuevoTipo] = useState('sermon')
   const [creando, setCreando] = useState(false)
@@ -144,6 +150,19 @@ export default function Proyectos({
       window.removeEventListener('offline', handleOffline)
     }
   }, [queryClient])
+
+  // LemWriter Local: pedir el acceso a las carpetas públicas y releer.
+  // Tras desinstalar/reinstalar, Android bloquea los archivos creados por
+  // la instalación anterior hasta concederlo (ver permisoCarpetas.ts).
+  const handlePedirPermisoCarpetas = async () => {
+    const ok = await pedirPermisoCarpetas()
+    toast.success(
+      ok
+        ? 'Releyendo tus carpetas…'
+        : 'Si no apareció ningún cuadro: actívalo en Ajustes → Aplicaciones → LemWriter Local → Acceso a todos los archivos, y vuelve aquí'
+    )
+    queryClient.invalidateQueries({ queryKey: ['proyectos'] })
+  }
 
   const { data: proyectos = [], isLoading: loading } = useQuery({
     queryKey: ['proyectos'],
@@ -630,6 +649,67 @@ export default function Proyectos({
           <span style={{ fontSize: '14px', lineHeight: 1 }}>📥</span>
           <span>Importar documento (.docx, .pdf, .txt, .md)</span>
         </button>
+      )}
+
+      {/* LemWriter Local: aviso de permiso de carpetas (lista vacía tras reinstalar) */}
+      {ES_LOCAL && !loading && proyectos.length === 0 && !avisoPermisoCerrado && (
+        <div
+          style={{
+            marginBottom: '14px',
+            background: 'rgba(20, 43, 55, 0.8)',
+            border: '1px solid rgba(201, 162, 74, 0.35)',
+            borderRadius: '8px',
+            padding: '12px',
+            color: '#E8E3D8',
+            fontSize: '12px',
+            lineHeight: 1.5
+          }}
+        >
+          <p style={{ margin: '0 0 8px' }}>
+            ¿Ya tenías proyectos en <strong>Documentos/LemWriter</strong> y no aparecen? Al desinstalar
+            y reinstalar, Android bloquea el acceso a los archivos de la instalación anterior. Concede
+            el permiso y la lista se llena sola, sin mover ni perder nada.
+          </p>
+          <button
+            onClick={handlePedirPermisoCarpetas}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(135deg, #C9A24A 0%, #9C7B2D 100%)',
+              border: '1px solid #C9A24A',
+              color: '#142B37',
+              fontSize: '12px',
+              fontWeight: 700,
+              padding: '9px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontFamily: "'Cinzel', serif",
+              marginBottom: '8px'
+            }}
+          >
+            Permitir acceso a mis carpetas
+          </button>
+          <p style={{ margin: '0 0 8px', opacity: 0.85 }}>
+            Si no aparece ningún cuadro: Ajustes → Aplicaciones → LemWriter Local → «Acceso a todos los
+            archivos» → Permitir, y vuelve aquí.
+          </p>
+          <button
+            onClick={() => {
+              ocultarAvisoPermiso()
+              setAvisoPermisoCerrado(true)
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#DFBE72',
+              fontSize: '11px',
+              cursor: 'pointer',
+              padding: 0,
+              textDecoration: 'underline'
+            }}
+          >
+            No mostrar más
+          </button>
+        </div>
       )}
 
       {/* Banner de Conflictos de Edición si existen */}
