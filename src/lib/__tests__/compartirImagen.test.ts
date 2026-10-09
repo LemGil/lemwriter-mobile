@@ -5,7 +5,12 @@
 // en canvas se comprueba en el teléfono).
 
 import { describe, it, expect } from 'vitest'
-import { construirDocumentoCompartible, construirPdfPaginas } from '../compartirImagen'
+import {
+  construirDocumentoCompartible,
+  construirPdfPaginas,
+  construirSvgDocumento,
+  calcularEscalaRaster,
+} from '../compartirImagen'
 
 describe('compartirImagen: documento visual de la sección', () => {
   it('lleva el título, el contenido y los estilos de numeración', () => {
@@ -30,6 +35,22 @@ describe('compartirImagen: documento visual de la sección', () => {
     expect(doc).not.toContain('<img')
     expect(doc).toContain('Fe &lt;b&gt;&amp;&lt;/b&gt; obras')
     expect(doc).toContain('Fin')
+  })
+})
+
+describe('compartirImagen: dibujo al doble de tamaño (calidad)', () => {
+  it('la escala es doble en documentos normales y baja solo en los muy largos', () => {
+    expect(calcularEscalaRaster(600)).toBe(2)
+    expect(calcularEscalaRaster(8000)).toBe(2)
+    expect(calcularEscalaRaster(16000)).toBe(1)
+    expect(calcularEscalaRaster(32000)).toBe(0.5)
+  })
+
+  it('el SVG lleva el documento al doble de píxeles reales', () => {
+    const svg = construirSvgDocumento('<div>Texto</div>', 1080, 2000, 2)
+    expect(svg).toContain('width="2160" height="4000"')
+    expect(svg).toContain('width:1080px;height:2000px;transform:scale(2)')
+    expect(svg).toContain('<div>Texto</div>')
   })
 })
 

@@ -47,6 +47,37 @@ ${cuerpo}
 }
 
 // ─── Dibujo del documento en un lienzo (canvas) ──────────────────────────────
+//
+// Calidad: el documento se maqueta a 1080 px de ancho «de papel» y se
+// dibuja al DOBLE (2160 px reales), para que al verlo y ampliarlo en
+// WhatsApp el texto se lea nítido. Tope de alto para no agotar la memoria
+// del teléfono en secciones larguísimas.
+
+export const ANCHO_DOCUMENTO_CSS = 1080
+const ESCALA_RASTER_MAXIMA = 2
+const ALTO_RASTER_MAXIMO = 16000
+
+/** Escala de dibujo según el alto del documento: doble hasta el tope. */
+export function calcularEscalaRaster(altoCss: number): number {
+  return Math.min(ESCALA_RASTER_MAXIMA, ALTO_RASTER_MAXIMO / Math.max(1, altoCss))
+}
+
+/** SVG que envuelve el documento para dibujarlo en un lienzo a la escala dada. */
+export function construirSvgDocumento(
+  documentoHtml: string,
+  anchoCss: number,
+  altoCss: number,
+  escala: number
+): string {
+  const anchoPx = Math.round(anchoCss * escala)
+  const altoPx = Math.round(altoCss * escala)
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${anchoPx}" height="${altoPx}">` +
+    `<foreignObject width="100%" height="100%">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${anchoCss}px;height:${altoCss}px;transform:scale(${escala});transform-origin:0 0;">${documentoHtml}</div>` +
+    `</foreignObject></svg>`
+  )
+}
 
 async function documentoACanvas(titulo: string, html: string): Promise<HTMLCanvasElement> {
   const documentoHtml = construirDocumentoCompartible(titulo, html)
@@ -59,15 +90,12 @@ async function documentoACanvas(titulo: string, html: string): Promise<HTMLCanva
   medidor.innerHTML = documentoHtml
   document.body.appendChild(medidor)
   const nodo = medidor.firstElementChild as HTMLElement
-  const ancho = 1080
+  const ancho = ANCHO_DOCUMENTO_CSS
   const altoReal = Math.max(nodo.scrollHeight, nodo.offsetHeight, 200)
-  const escala = altoReal > 15000 ? 15000 / altoReal : 1
-  const alto = Math.ceil(altoReal * escala)
   medidor.remove()
 
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${ancho}" height="${altoReal}">` +
-    `<foreignObject width="100%" height="100%">${documentoHtml}</foreignObject></svg>`
+  const escala = calcularEscalaRaster(altoReal)
+  const svg = construirSvgDocumento(documentoHtml, ancho, altoReal, escala)
   const img = new Image()
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve()
@@ -76,13 +104,13 @@ async function documentoACanvas(titulo: string, html: string): Promise<HTMLCanva
   })
 
   const canvas = document.createElement('canvas')
-  canvas.width = ancho
-  canvas.height = alto
+  canvas.width = Math.round(ancho * escala)
+  canvas.height = Math.round(altoReal * escala)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Sin contexto de dibujo')
   ctx.fillStyle = '#0A1A31'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(img, 0, 0, ancho, altoReal, 0, 0, ancho, alto)
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
   return canvas
 }
 
@@ -204,7 +232,7 @@ export async function seccionAPdfBytes(titulo: string, html: string): Promise<Ui
     ctx.fillStyle = '#0A1A31'
     ctx.fillRect(0, 0, ancho, altoPagina)
     ctx.drawImage(canvas, 0, y, ancho, h, 0, 0, ancho, h)
-    const dataUrl = hoja.toDataURL('image/jpeg', 0.85)
+    const dataUrl = hoja.toDataURL('image/jpeg', 0.92)
     paginas.push({ datos: dataUrlABytes(dataUrl), ancho, alto: altoPagina })
   }
   return construirPdfPaginas(paginas)
