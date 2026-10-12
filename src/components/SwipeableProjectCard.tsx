@@ -470,6 +470,50 @@ export const SwipeableProjectCard: React.FC<SwipeableProjectCardProps> = ({
             </svg>
           </button>
 
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(proyecto)
+            }}
+            title="Eliminar este proyecto"
+            aria-label={`Eliminar proyecto ${proyecto.title}`}
+            style={{
+              background: 'rgba(229, 72, 77, 0.10)',
+              border: '1px solid rgba(229, 72, 77, 0.35)',
+              color: '#E5484D',
+              borderRadius: '8px',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(229, 72, 77, 0.28)'
+              e.currentTarget.style.borderColor = '#E5484D'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(229, 72, 77, 0.10)'
+              e.currentTarget.style.borderColor = 'rgba(229, 72, 77, 0.35)'
+            }}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+
           <div
             style={{
               color: '#C9A24A',
