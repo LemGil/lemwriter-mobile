@@ -17,7 +17,7 @@ import {
   StorageQuotaInfo
 } from '../lib/dataStore'
 import { ObsidianVaultSetup } from './settings/ObsidianVaultSetup'
-import { LocalTestPanel } from './settings/LocalTestPanel'
+import { CarpetaRaizPanel } from './settings/CarpetaRaizPanel'
 import { MigracionLocalPanel } from './settings/MigracionLocalPanel'
 import { ES_LOCAL } from '../lib/flavor'
 
@@ -958,7 +958,7 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
                   </div>
 
                   <ObsidianVaultSetup />
-                  <LocalTestPanel />
+                  {ES_LOCAL && <CarpetaRaizPanel />}
                   {ES_LOCAL && <MigracionLocalPanel />}
                 </div>
               )}

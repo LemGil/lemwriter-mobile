@@ -4,16 +4,25 @@
 // Montar este componente dentro de la pantalla de Configuración existente.
 
 import { useEffect, useState } from 'react';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import {
   getVaultStatus,
   isFileSystemAccessSupported,
   requestAndSaveVaultFolder,
+  esNativo,
+  rutaVaultNativa,
+  guardarRutaVaultNativa,
+  etiquetaRutaVault,
+  type BaseVault,
 } from '../../services/obsidianFsService';
+import { ExploradorCarpetas, type BaseCarpeta } from './ExploradorCarpetas';
 
 type VaultStatus = 'checking' | 'connected' | 'disconnected' | 'unsupported';
 
 export function ObsidianVaultSetup() {
   const [status, setStatus] = useState<VaultStatus>('checking');
+  const [exploradorAbierto, setExploradorAbierto] = useState(false);
+  const [rutaEtiqueta, setRutaEtiqueta] = useState('');
 
   // Verificar estado al montar — ¿ya hay carpeta autorizada?
   useEffect(() => {
@@ -24,10 +33,33 @@ export function ObsidianVaultSetup() {
     getVaultStatus().then(s => setStatus(s));
   }, []);
 
+  useEffect(() => {
+    if (esNativo()) setRutaEtiqueta(etiquetaRutaVault());
+  }, [status]);
+
   const handleConnect = async () => {
+    // En la APK no hay picker del sistema: se elige con el explorador
+    if (esNativo()) {
+      setExploradorAbierto(true);
+      return;
+    }
     const granted = await requestAndSaveVaultFolder();
     if (granted) setStatus('connected');
     // Si el usuario canceló el picker (granted = false), no cambiar estado
+  };
+
+  const handleElegirCarpeta = async (base: BaseCarpeta, ruta: string) => {
+    try {
+      const dir = base === 'documents' ? Directory.Documents : Directory.ExternalStorage;
+      await Filesystem.mkdir({ path: ruta, directory: dir, recursive: true });
+      guardarRutaVaultNativa(base as BaseVault, ruta);
+      setRutaEtiqueta(etiquetaRutaVault({ base: base as BaseVault, ruta }));
+      setStatus('connected');
+    } catch {
+      // No se pudo crear/usar la carpeta: se queda desconectado
+    } finally {
+      setExploradorAbierto(false);
+    }
   };
 
   // ── Render: estado cargando ────────────────────────────────────────────────
@@ -97,7 +129,7 @@ export function ObsidianVaultSetup() {
           margin: '0 0 12px 0'
         }}>
           ✅ Vault conectado. Cada autosave actualiza el archivo .md correspondiente
-          en <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px', color: '#DFBE72' }}>MinisterioWiki/raw/</code>.
+          en <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px', color: '#DFBE72' }}>{esNativo() && rutaEtiqueta ? rutaEtiqueta : 'MinisterioWiki/raw/'}</code>.
         </p>
         <button
           className="obsidian-setup__btn obsidian-setup__btn--secondary"
@@ -115,6 +147,15 @@ export function ObsidianVaultSetup() {
         >
           Cambiar carpeta
         </button>
+        {exploradorAbierto && (
+          <ExploradorCarpetas
+            titulo="Carpeta del vault de Obsidian"
+            baseInicial={rutaVaultNativa().base}
+            rutaInicial={rutaVaultNativa().ruta}
+            onElegir={handleElegirCarpeta}
+            onCerrar={() => setExploradorAbierto(false)}
+          />
+        )}
       </div>
     );
   }
@@ -163,6 +204,15 @@ export function ObsidianVaultSetup() {
       >
         Conectar carpeta MinisterioWiki/raw
       </button>
+      {exploradorAbierto && (
+        <ExploradorCarpetas
+          titulo="Carpeta del vault de Obsidian"
+          baseInicial={rutaVaultNativa().base}
+          rutaInicial={rutaVaultNativa().ruta}
+          onElegir={handleElegirCarpeta}
+          onCerrar={() => setExploradorAbierto(false)}
+        />
+      )}
     </div>
   );
 }

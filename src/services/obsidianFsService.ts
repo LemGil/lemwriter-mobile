@@ -1,23 +1,84 @@
 // src/services/obsidianFsService.ts
 //
-// Gestiona acceso al vault de Obsidian desde el browser vía File System Access API.
+// Gestiona acceso al vault de Obsidian.
+//
+// - En escritorio: vía File System Access API (showDirectoryPicker); el
+//   handle se persiste en IndexedDB entre sesiones.
+// - En la APK (Android): vía @capacitor/filesystem sobre la carpeta que el
+//   usuario elige con el explorador (por defecto Almacenamiento/MinisterioWiki/raw,
+//   que llega sola por Syncthing); la ruta se guarda en localStorage.
+//   Requiere el permiso «Acceso a todos los archivos».
 //
 // Flujo de uso:
-//   1. El usuario toca "Conectar carpeta" en Configuración (una sola vez)
-//   2. requestAndSaveVaultFolder() abre el picker nativo del OS
-//   3. El FileSystemDirectoryHandle se persiste en IndexedDB entre sesiones
-//   4. En cada autosave, writeObsidianFile() recupera el handle y escribe el .md
+//   1. El usuario toca "Conectar carpeta" en Respaldo (una sola vez)
+//   2. En escritorio se abre el picker nativo del OS; en la APK el
+//      explorador de carpetas de la app
+//   3. En cada autosave, writeObsidianFile() escribe el .md correspondiente
 //
-// LIMITACIÓN: requiere Chrome o Edge en escritorio.
+// LIMITACIÓN (solo escritorio):
 //   - iOS Safari: no soportado (window.showDirectoryPicker no existe)
 //   - Firefox: soportado desde v111 pero con algunas restricciones
-//   - isFileSystemAccessSupported() devuelve false en plataformas no soportadas
-//     y writeObsidianFile() retorna false silenciosamente — el autosave
-//     de Supabase nunca se ve afectado.
+
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 
 const IDB_NAME   = 'lemwriter-mobile-fs';
 const IDB_STORE  = 'fs-handles';
 const HANDLE_KEY = 'obsidian-root';
+
+// ─── Ruta del vault en la APK ─────────────────────────────────────────────────
+
+const CLAVE_RUTA_VAULT = 'lw_obsidian_vault'
+
+export type BaseVault = 'external' | 'documents'
+
+const VAULT_DEFECTO: { base: BaseVault; ruta: string } = { base: 'external', ruta: 'MinisterioWiki/raw' }
+
+/** true cuando corre dentro de la APK (Android). */
+export function esNativo(): boolean {
+  try {
+    return Capacitor.isNativePlatform()
+  } catch {
+    return false
+  }
+}
+
+/** Carpeta del vault elegida en la APK, formato "base:ruta". */
+export function rutaVaultNativa(): { base: BaseVault; ruta: string } {
+  try {
+    const crudo = localStorage.getItem(CLAVE_RUTA_VAULT)
+    if (crudo) {
+      const idx = crudo.indexOf(':')
+      const base = crudo.slice(0, idx)
+      const ruta = crudo.slice(idx + 1)
+      if ((base === 'external' || base === 'documents') && ruta) {
+        return { base, ruta }
+      }
+    }
+  } catch {
+    /* sin localStorage: valor por defecto */
+  }
+  return { ...VAULT_DEFECTO }
+}
+
+/** Guarda la carpeta del vault elegida con el explorador. */
+export function guardarRutaVaultNativa(base: BaseVault, ruta: string): void {
+  try {
+    localStorage.setItem(CLAVE_RUTA_VAULT, `${base}:${ruta}`)
+  } catch {
+    /* sin localStorage: no se persiste */
+  }
+}
+
+/** Etiqueta legible de la ruta, p. ej. «Almacenamiento/MinisterioWiki/raw». */
+export function etiquetaRutaVault(v?: { base: BaseVault; ruta: string }): string {
+  const actual = v ?? rutaVaultNativa()
+  return `${actual.base === 'external' ? 'Almacenamiento' : 'Documentos'}/${actual.ruta}`
+}
+
+function directorioVault(base: BaseVault): Directory {
+  return base === 'documents' ? Directory.Documents : Directory.ExternalStorage
+}
 
 // queryPermission() aún no está en los tipos DOM de TypeScript
 interface FileSystemDirectoryHandleConPermisos extends FileSystemDirectoryHandle {
@@ -79,6 +140,25 @@ export async function writeObsidianFile(
   relativePath: string,
   content: string
 ): Promise<boolean> {
+  // ── En la APK: escritura directa con la carpeta elegida ──
+  if (esNativo()) {
+    try {
+      const v = rutaVaultNativa()
+      const destino = v.ruta ? `${v.ruta}/${relativePath}` : relativePath
+      await Filesystem.writeFile({
+        path: destino,
+        data: content,
+        directory: directorioVault(v.base),
+        encoding: Encoding.UTF8,
+        recursive: true,
+      })
+      return true
+    } catch (err) {
+      console.error('[Obsidian FS] Error al escribir en la APK:', (err as Error).message)
+      return false
+    }
+  }
+
   try {
     const root = await loadRootHandle();
     if (!root) {
@@ -124,6 +204,7 @@ export async function writeObsidianFile(
  * Usar para mostrar/ocultar el botón de conexión en Configuración.
  */
 export function isFileSystemAccessSupported(): boolean {
+  if (esNativo()) return true
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 }
 
@@ -134,6 +215,13 @@ export function isFileSystemAccessSupported(): boolean {
  * @returns 'connected' | 'disconnected' | 'unsupported'
  */
 export async function getVaultStatus(): Promise<'connected' | 'disconnected' | 'unsupported'> {
+  if (esNativo()) {
+    try {
+      return localStorage.getItem(CLAVE_RUTA_VAULT) ? 'connected' : 'disconnected'
+    } catch {
+      return 'disconnected'
+    }
+  }
   if (!isFileSystemAccessSupported()) return 'unsupported';
   try {
     const root = await loadRootHandle();
