@@ -178,7 +178,35 @@ function stripTags(html: string): string {
   return (html || '').replace(/<[^>]+>/g, '')
 }
 
-export function htmlToMarkdown(html: string | undefined | null): string {
+// ─── Alineación de párrafos ──────────────────────────────────────────────────
+//
+// El editor (Tiptap TextAlign) guarda la alineación como
+// style="text-align: justify|center|right" en <p>/<h1-4>. El .md la conserva
+// con un marcador discreto al final de la línea:
+//
+//   Mi párrafo justificado. <!-- alinear: justify -->
+//
+// Así sobrevive al ciclo guardar→abrir. «left» no se marca (es el defecto).
+
+/** Extrae la alineación de los atributos de un tag; '' si no hay o es el defecto. */
+function alinearDeAttrs(attrs: string | undefined): string {
+  const m = /text-align\s*:\s*(center|right|justify|left)/i.exec(attrs || '')
+  if (!m) return ''
+  const v = m[1].toLowerCase()
+  return v === 'left' ? '' : v
+}
+
+/**
+ * Si el texto termina con «<!-- alinear: X -->», lo quita y devuelve
+ * [textoLimpio, X]; si no, [texto, ''].
+ */
+function extraerAlineacion(texto: string): [string, string] {
+  const m = /\s*<!--\s*alinear:\s*(center|right|justify)\s*-->\s*$/.exec(texto)
+  if (!m) return [texto, '']
+  return [texto.slice(0, m.index).replace(/\s+$/, ''), m[1]]
+}
+
+export function htmlToMarkdown(html: string | undefined | null, _interno = false): string {
   if (!html) return ''
   // Proteger spans con style (color/resaltado) antes de quitar etiquetas
   const spans: string[] = []
@@ -191,7 +219,7 @@ export function htmlToMarkdown(html: string | undefined | null): string {
   })
 
   md = md.replace(/<blockquote([^>]*)>([\s\S]*?)<\/blockquote>/gi, (_m, attrs, inner) => {
-    const texto = htmlToMarkdown(inner).trim()
+    const texto = htmlToMarkdown(inner, true).trim()
     const tipo =
       (/data-callout-type=["'](\w+)["']/i.exec(attrs) || [])[1] ||
       (/callout-(\w+)/i.exec(attrs) || [])[1]
@@ -201,10 +229,30 @@ export function htmlToMarkdown(html: string | undefined | null): string {
   })
 
   md = md.replace(/<hr\s*\/?>/gi, '\n---\n\n')
-  md = md.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_m, t) => `# ${stripTags(t).trim()}\n\n`)
-  md = md.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_m, t) => `## ${stripTags(t).trim()}\n\n`)
-  md = md.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (_m, t) => `### ${stripTags(t).trim()}\n\n`)
-  md = md.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, (_m, t) => `#### ${stripTags(t).trim()}\n\n`)
+  md = md.replace(/<h1([^>]*)>([\s\S]*?)<\/h1>/gi, (_m, attrs, t) => {
+    const textoH = stripTags(t).trim()
+    if (!textoH) return ''
+    const alH = alinearDeAttrs(attrs)
+    return `# ${textoH}` + (alH ? `\u0003${alH}\u0004` : '') + '\n\n'
+  })
+  md = md.replace(/<h2([^>]*)>([\s\S]*?)<\/h2>/gi, (_m, attrs, t) => {
+    const textoH = stripTags(t).trim()
+    if (!textoH) return ''
+    const alH = alinearDeAttrs(attrs)
+    return `## ${textoH}` + (alH ? `\u0003${alH}\u0004` : '') + '\n\n'
+  })
+  md = md.replace(/<h3([^>]*)>([\s\S]*?)<\/h3>/gi, (_m, attrs, t) => {
+    const textoH = stripTags(t).trim()
+    if (!textoH) return ''
+    const alH = alinearDeAttrs(attrs)
+    return `### ${textoH}` + (alH ? `\u0003${alH}\u0004` : '') + '\n\n'
+  })
+  md = md.replace(/<h4([^>]*)>([\s\S]*?)<\/h4>/gi, (_m, attrs, t) => {
+    const textoH = stripTags(t).trim()
+    if (!textoH) return ''
+    const alH = alinearDeAttrs(attrs)
+    return `#### ${textoH}` + (alH ? `\u0003${alH}\u0004` : '') + '\n\n'
+  })
 
   md = md.replace(/<ol([^>]*)>([\s\S]*?)<\/ol>/gi, (_m, attrs, inner) => {
     const estilo = (/data-list-style=["']([\w-]+)["']/i.exec(attrs) || [])[1] || 'decimal'
@@ -212,14 +260,14 @@ export function htmlToMarkdown(html: string | undefined | null): string {
     return (
       inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_2: string, item: string) => {
         i++
-        return `${marcadorNumeracion(estilo, i)} ${stripTags(htmlToMarkdown(item)).trim()}\n`
+        return `${marcadorNumeracion(estilo, i)} ${stripTags(htmlToMarkdown(item, true)).trim()}\n`
       }) + '\n'
     )
   })
   md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_m, inner) => {
     return (
       inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_2: string, item: string) => {
-        return `- ${stripTags(htmlToMarkdown(item)).trim()}\n`
+        return `- ${stripTags(htmlToMarkdown(item, true)).trim()}\n`
       }) + '\n'
     )
   })
@@ -230,9 +278,13 @@ export function htmlToMarkdown(html: string | undefined | null): string {
   md = md.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (_m, t) => `*${stripTags(t)}*`)
   md = md.replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, (_m, t) => `*${stripTags(t)}*`)
   md = md.replace(/<u[^>]*>([\s\S]*?)<\/u>/gi, (_m, t) => `<u>${stripTags(t)}</u>`)
-  md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_m, t) => {
+  md = md.replace(/<p([^>]*)>([\s\S]*?)<\/p>/gi, (_m, attrs, t) => {
     const texto = t.trim()
-    return texto ? texto + '\n\n' : ''
+    if (!texto) return ''
+    const al = alinearDeAttrs(attrs)
+    // Marcador temporal: el comentario final se escribe al cierre de la
+    // llamada externa (el limpiador genérico de tags lo borraría antes).
+    return texto + (al ? `\u0003${al}\u0004` : '') + '\n\n'
   })
   md = md.replace(/<br\s*\/?>/gi, '\n')
   md = md.replace(/<[^>]+>/g, '')
@@ -246,6 +298,9 @@ export function htmlToMarkdown(html: string | undefined | null): string {
   // Restaurar spans protegidos
   md = md.replace(/\u0001(\d+)\u0002/g, (_m, i) => spans[Number(i)] || '')
   md = md.replace(/\n{3,}/g, '\n\n')
+  if (!_interno) {
+    md = md.replace(/\u0003(center|right|justify)\u0004/g, ' <!-- alinear: $1 -->')
+  }
   return md.trim()
 }
 
@@ -271,7 +326,12 @@ export function markdownToHtml(md: string | undefined | null): string {
     const h = /^(#{1,4})\s+(.*)$/.exec(trim)
     if (h) {
       const nivel = h[1].length
-      out.push(`<h${nivel}>${inlineMdAHtml(h[2])}</h${nivel}>`)
+      const [txtH, alH] = extraerAlineacion(h[2])
+      out.push(
+        alH
+          ? `<h${nivel} style="text-align: ${alH}">${inlineMdAHtml(txtH)}</h${nivel}>`
+          : `<h${nivel}>${inlineMdAHtml(txtH)}</h${nivel}>`
+      )
       i++
       continue
     }
@@ -281,23 +341,48 @@ export function markdownToHtml(md: string | undefined | null): string {
       continue
     }
     if (trim.startsWith('>')) {
-      const bloque: string[] = []
+      const bloque: { t: string; al: string }[] = []
       let callout: string | undefined
       while (i < lineas.length && lineas[i].trim().startsWith('>')) {
         let l = lineas[i].trim().replace(/^>\s?/, '')
+        // Quitar primero el marcador de alineación para que las
+        // comparaciones del encabezado canónico funcionen igual.
+        const [lTxt, lAl] = extraerAlineacion(l)
+        l = lTxt
         const cm = /^\[!(\w+)\]\s*(.*)$/.exec(l)
         if (cm) {
           callout = CALLOUT_A_TIPO[cm[1]]
-          l = cm[2] || ''
-          if (!l) {
+          l = (cm[2] || '').trim()
+          // El encabezado «> [!quote] Pasaje Bíblico» lo escribe el guardado:
+          // su título es decoración (la app ya muestra su propia etiqueta),
+          // no contenido. Si coincide con el título canónico se descarta,
+          // para que no se multiplique en cada ciclo guardar→abrir.
+          const titulo = callout ? CALLOUT_TITULO[callout] : undefined
+          if (!l || (titulo && l === titulo)) {
+            i++
+            continue
+          }
+        } else {
+          // Sanea títulos canónicos acumulados por el defecto anterior:
+          // dentro de un bloque, un párrafo idéntico al título canónico
+          // solo puede venir de ese defecto (ni la inserción de citas ni
+          // los bloques crean jamás ese párrafo).
+          const tituloBloque = callout ? CALLOUT_TITULO[callout] : undefined
+          if (tituloBloque && l.trim() === tituloBloque) {
             i++
             continue
           }
         }
-        bloque.push(l)
+        bloque.push({ t: l, al: lAl })
         i++
       }
-      const inner = bloque.map((l) => `<p>${inlineMdAHtml(l)}</p>`).join('')
+      const inner = bloque
+        .map((b) =>
+          b.al
+            ? `<p style="text-align: ${b.al}">${inlineMdAHtml(b.t)}</p>`
+            : `<p>${inlineMdAHtml(b.t)}</p>`
+        )
+        .join('')
       out.push(
         callout
           ? `<blockquote data-callout-type="${callout}">${inner}</blockquote>`
@@ -347,7 +432,12 @@ export function markdownToHtml(md: string | undefined | null): string {
       par.push(l)
       i++
     }
-    out.push(`<p>${inlineMdAHtml(par.join(' '))}</p>`)
+    const [txtPar, alPar] = extraerAlineacion(par.join(' '))
+    out.push(
+      alPar
+        ? `<p style="text-align: ${alPar}">${inlineMdAHtml(txtPar)}</p>`
+        : `<p>${inlineMdAHtml(txtPar)}</p>`
+    )
   }
   return out.join('\n')
 }
