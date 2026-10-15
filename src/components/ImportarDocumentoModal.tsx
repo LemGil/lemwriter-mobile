@@ -18,6 +18,8 @@ import {
   esDocumentoSoportado,
   type DocumentoImportado
 } from '../lib/importarDocumento'
+import { guardarOriginalProyecto } from '../lib/localStore'
+import { ES_LOCAL } from '../lib/flavor'
 import type { Proyecto } from '../types'
 
 interface Props {
@@ -35,6 +37,15 @@ const TIPOS: { valor: string; etiqueta: string }[] = [
   { valor: 'libro', etiqueta: '📚 Libro' }
 ]
 
+function blobABase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader()
+    lector.onload = () => resolve(String(lector.result || '').split(',')[1] || '')
+    lector.onerror = () => reject(lector.error)
+    lector.readAsDataURL(blob)
+  })
+}
+
 export const ImportarDocumentoModal: React.FC<Props> = ({ onClose, onImportado }) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [paso, setPaso] = useState<'elegir' | 'vista'>('elegir')
@@ -44,6 +55,8 @@ export const ImportarDocumentoModal: React.FC<Props> = ({ onClose, onImportado }
   const [tipo, setTipo] = useState('estudio')
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [archivoOriginal, setArchivoOriginal] = useState<File | null>(null)
+  const [guardarOriginalChk, setGuardarOriginalChk] = useState(true)
 
   const alElegir = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0]
@@ -56,6 +69,7 @@ export const ImportarDocumentoModal: React.FC<Props> = ({ onClose, onImportado }
     setError(null)
     setOcupado(true)
     setNombreArchivo(archivo.name)
+    setArchivoOriginal(archivo)
     try {
       const doc = await convertirDocumento({ name: archivo.name, data: archivo })
       setDocumento(doc)
@@ -93,6 +107,15 @@ export const ImportarDocumentoModal: React.FC<Props> = ({ onClose, onImportado }
         }))
       )
       await flushDataStore()
+      // Copia opcional del archivo original dentro del proyecto (solo Local)
+      if (ES_LOCAL && guardarOriginalChk && archivoOriginal) {
+        try {
+          const base64 = await blobABase64(archivoOriginal)
+          await guardarOriginalProyecto(proyecto.id, archivoOriginal.name, base64)
+        } catch (e: any) {
+          console.warn('[Importar] No se pudo guardar el original:', e?.message ?? e)
+        }
+      }
       toast.success(`Documento importado: ${documento.secciones.length} sección(es)`)
       onImportado(proyecto)
     } catch (err: any) {
@@ -224,6 +247,28 @@ export const ImportarDocumentoModal: React.FC<Props> = ({ onClose, onImportado }
                 </option>
               ))}
             </select>
+
+            {ES_LOCAL && (
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '12px',
+                  fontSize: '12.5px',
+                  color: '#B9CBD4',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={guardarOriginalChk}
+                  onChange={(e) => setGuardarOriginalChk(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#C9A24A' }}
+                />
+                Guardar copia del archivo original en el proyecto
+              </label>
+            )}
 
             <div
               style={{

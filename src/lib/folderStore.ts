@@ -217,6 +217,12 @@ export function htmlToMarkdown(html: string | undefined | null, _interno = false
     }
     return inner
   })
+  // Proteger <mark> (resaltado de Tiptap): si no, el limpiador genérico
+  // lo borraría y el resaltado se perdería al reabrir
+  md = md.replace(/<mark([^>]*)>([\s\S]*?)<\/mark>/gi, (m) => {
+    spans.push(m)
+    return `\u0001${spans.length - 1}\u0002`
+  })
 
   md = md.replace(/<blockquote([^>]*)>([\s\S]*?)<\/blockquote>/gi, (_m, attrs, inner) => {
     const texto = htmlToMarkdown(inner, true).trim()
@@ -730,6 +736,27 @@ export class FolderStore {
     await this.fs.writeFile(`${this.raiz}/${p.carpeta}/${archivo}`, contenido)
     await this.escribirProyecto({ ...p, ultima_actualizacion: hoy() })
     return { id, titulo: seccion.titulo, orden, markdown: cuerpoMd, html: seccion.contentHtml, archivo }
+  }
+
+  /**
+   * Guarda una copia del archivo original importado (.docx/.pdf/…)
+   * dentro del proyecto, en la subcarpeta «originales».
+   * El contenido va en base64.
+   */
+  async guardarOriginal(
+    proyectoId: string,
+    nombreArchivo: string,
+    base64: string
+  ): Promise<string> {
+    const p = await this.buscarProyecto(proyectoId)
+    if (!p) throw new Error(`Proyecto no encontrado: ${proyectoId}`)
+    // Solo el nombre del archivo, sin carpetas: «../../mal.pdf» → «mal.pdf»
+    const base = nombreArchivo.split(/[\\/]/).pop() || ''
+    const seguro = base.replace(/^\.+/, '') || 'original'
+    const ruta = `${this.raiz}/${p.carpeta}/originales/${seguro}`
+    await this.fs.mkdir(`${this.raiz}/${p.carpeta}/originales`)
+    await this.fs.writeFileBase64(ruta, base64)
+    return ruta
   }
 
   async reordenarSecciones(proyectoId: string, idsEnOrden: string[]): Promise<FolderSeccion[]> {

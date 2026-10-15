@@ -18,6 +18,7 @@ import {
 } from '../lib/dataStore'
 import { ObsidianVaultSetup } from './settings/ObsidianVaultSetup'
 import { CarpetaRaizPanel } from './settings/CarpetaRaizPanel'
+import { RespaldoZipCarpetas } from './settings/RespaldoZipCarpetas'
 import { MigracionLocalPanel } from './settings/MigracionLocalPanel'
 import { ES_LOCAL } from '../lib/flavor'
 
@@ -959,6 +960,7 @@ export const RespaldoTotalModal: React.FC<RespaldoTotalModalProps> = ({
 
                   <ObsidianVaultSetup />
                   {ES_LOCAL && <CarpetaRaizPanel />}
+                  {ES_LOCAL && <RespaldoZipCarpetas />}
                   {ES_LOCAL && <MigracionLocalPanel />}
                 </div>
               )}

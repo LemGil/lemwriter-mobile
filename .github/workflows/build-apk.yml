@@ -80,6 +80,6 @@ jobs:
       - name: Subir la APK como artefacto descargable
         uses: actions/upload-artifact@v4
         with:
-          name: LemWriter-Local-APK
+          name: LemWriter-Local-APK-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug-firmada.apk
           if-no-files-found: error

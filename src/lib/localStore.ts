@@ -118,6 +118,20 @@ export async function refrescarLocalStore(): Promise<void> {
   await cargarDesdeCarpetas()
 }
 
+/**
+ * Guarda una copia del archivo original importado dentro del proyecto
+ * (subcarpeta «originales»). Solo LemWriter Local.
+ */
+export async function guardarOriginalProyecto(
+  proyectoId: string,
+  nombre: string,
+  base64: string
+): Promise<string> {
+  await initLocalStore()
+  if (!store) throw new Error('Almacén local no iniciado')
+  return store.guardarOriginal(proyectoId, nombre, base64)
+}
+
 function aProyectoApp(p: FolderProyecto): OfflineProyecto {
   return {
     id: p.id,

@@ -56,7 +56,7 @@ export const BibliaVista: React.FC = () => {
       const crudo = localStorage.getItem(CLAVE_ESTADO)
       if (crudo) {
         const datos = JSON.parse(crudo)
-        return datos.version === 'vbl' ? 'vbl' : 'rv1909'
+        if (VERSIONES_BIBLIA.some((v) => v.id === datos.version)) return datos.version
       }
     } catch {
       /* valor por defecto */
@@ -543,6 +543,16 @@ export const BibliaVista: React.FC = () => {
             </button>
           </div>
 
+          {/* Cambiar de versión sin salir de la lectura */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#8E9EA7', fontSize: '11px', fontFamily: "'Inter', sans-serif" }}>Versión:</span>
+            {VERSIONES_BIBLIA.map((v) => (
+              <button key={v.id} style={estiloPill(version === v.id)} onClick={() => setVersion(v.id)} title={v.nombre}>
+                {v.corta}
+              </button>
+            ))}
+          </div>
+
           {cargando && <div style={{ color: '#9BB0BD', textAlign: 'center', padding: '24px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>Cargando…</div>}
           {errorCarga && <div style={{ color: '#F2A0A0', textAlign: 'center', padding: '24px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>{errorCarga}</div>}
 
@@ -679,7 +689,27 @@ export const BibliaVista: React.FC = () => {
               <span style={{ flex: 1, textAlign: 'center', color: tema.acento, fontFamily: "'Cinzel', Georgia, serif", fontSize: '16px', fontWeight: 700 }}>
                 {nombreActual} {capitulo}
               </span>
-              <span style={{ color: tema.suave, fontSize: '11px', fontFamily: "'Inter', sans-serif" }}>{versionCorta}</span>
+              {VERSIONES_BIBLIA.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setVersion(v.id)}
+                  title={v.nombre}
+                  style={{
+                    height: '30px',
+                    padding: '0 10px',
+                    borderRadius: '15px',
+                    border: `1px solid ${version === v.id ? tema.acento : tema.borde}`,
+                    background: version === v.id ? tema.acento : 'transparent',
+                    color: version === v.id ? tema.fondo : tema.suave,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontFamily: "'Inter', sans-serif",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {v.corta}
+                </button>
+              ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '760px', margin: '8px auto 0', flexWrap: 'wrap' }}>
               <button style={botonLectura(false)} onClick={() => setLetra((n) => Math.max(LETRA_MIN, n - 1))} disabled={letra <= LETRA_MIN} aria-label="Letra más chica">

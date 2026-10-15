@@ -48,6 +48,18 @@ export class CapacitorFsAdapter implements FsAdapter {
     })
   }
 
+  async writeFileBase64(path: string, base64: string): Promise<void> {
+    const parent = path.split('/').slice(0, -1).join('/')
+    if (parent) await this.mkdir(parent)
+    // Sin encoding: data se interpreta como base64.
+    await Filesystem.writeFile({
+      path,
+      data: base64,
+      directory: ROOT_DIRECTORY,
+      recursive: true,
+    })
+  }
+
   async rename(from: string, to: string): Promise<void> {
     await Filesystem.rename({ from, to, directory: ROOT_DIRECTORY, toDirectory: ROOT_DIRECTORY })
   }

@@ -47,7 +47,9 @@ function leerEstadoGuardado(): EstadoGuardado {
     const crudo = localStorage.getItem(CLAVE_ESTADO)
     if (crudo) {
       const datos = JSON.parse(crudo)
-      const version: VersionBiblia = datos.version === 'vbl' ? 'vbl' : 'rv1909'
+      const version: VersionBiblia = VERSIONES_BIBLIA.some((v) => v.id === datos.version)
+        ? datos.version
+        : 'rv1909'
       const metas = librosDe(version)
       if (metas.some((m) => m.codigo === datos.codigo)) {
         const capMax = totalCapitulos(version, datos.codigo)

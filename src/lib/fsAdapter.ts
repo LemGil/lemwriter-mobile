@@ -10,6 +10,8 @@ export interface FsAdapter {
   readdir(path: string): Promise<string[]>
   readFile(path: string): Promise<string>
   writeFile(path: string, data: string): Promise<void>
+  /** Escribe datos binarios (p. ej. el original de un .docx/.pdf) en base64. */
+  writeFileBase64(path: string, base64: string): Promise<void>
   rename(from: string, to: string): Promise<void>
   removeFile(path: string): Promise<void>
   removeDir(path: string): Promise<void>
@@ -67,6 +69,11 @@ export class MemoryFsAdapter implements FsAdapter {
     if (parent) await this.mkdir(parent)
     this.files.set(n, data)
     this.dirs.add(parent)
+  }
+
+  async writeFileBase64(path: string, base64: string): Promise<void> {
+    // En memoria se guarda el base64 tal cual (solo pruebas).
+    await this.writeFile(path, base64)
   }
 
   async rename(from: string, to: string): Promise<void> {
