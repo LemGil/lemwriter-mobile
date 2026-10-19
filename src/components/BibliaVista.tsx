@@ -11,6 +11,14 @@ import {
   parsearReferencia,
 } from '../biblia/bibliaService'
 import { cargarLeidos, alternarLeido, conteoPorLibro, claveCapitulo, reiniciarLeidos, sincronizarLeidosDesdeNube, respaldarCambioEnNube, borrarProgresoEnNube } from '../biblia/progresoLectura'
+import {
+  EntradaStrong,
+  CREDITOS_STRONG,
+  partirVersiculo,
+  fuertesDelVersiculo,
+  buscarStrong,
+  idiomaStrong,
+} from '../biblia/strongService'
 
 // Vista de LECTURA bíblica (pestaña Biblia). Pensada para leer la Biblia seguida,
 // marcar capítulos como leídos y ver el avance — no como buscador (eso queda en el
@@ -50,6 +58,145 @@ function posicionGuardada(version: VersionBiblia): { codigo: string; capitulo: n
   return { codigo: 'GEN', capitulo: 1 }
 }
 
+// ---------- Concordancia Strong (solo RVG) ----------
+// Las palabras etiquetadas se subrayan con puntos; al tocarlas se abre la ficha.
+
+function TextoVersiculo({
+  texto,
+  fuertes,
+  onPalabra,
+}: {
+  texto: string
+  fuertes: Map<number, string>
+  onPalabra: (codigo: string, palabra: string) => void
+}) {
+  if (fuertes.size === 0) return <>{texto}</>
+  return (
+    <>
+      {partirVersiculo(texto).map((f, i) => {
+        const codigo = f.esPalabra ? fuertes.get(f.indicePalabra) : undefined
+        if (!codigo) return <span key={i}>{f.texto}</span>
+        return (
+          <span
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation()
+              onPalabra(codigo, f.texto)
+            }}
+            style={{ textDecoration: 'underline dotted', textUnderlineOffset: '3px', cursor: 'pointer' }}
+          >
+            {f.texto}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+function ModalStrong({
+  codigo,
+  palabra,
+  onCerrar,
+}: {
+  codigo: string
+  palabra: string
+  onCerrar: () => void
+}) {
+  const [entrada, setEntrada] = useState<EntradaStrong | undefined>(undefined)
+  const [cargando, setCargando] = useState(true)
+  useEffect(() => {
+    let vivo = true
+    setCargando(true)
+    buscarStrong(codigo).then((e) => {
+      if (vivo) {
+        setEntrada(e)
+        setCargando(false)
+      }
+    })
+    return () => {
+      vivo = false
+    }
+  }, [codigo])
+  const idioma = idiomaStrong(codigo)
+  return (
+    <div
+      onClick={onCerrar}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        background: 'rgba(8, 15, 22, 0.72)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: '520px', maxHeight: '82vh', overflowY: 'auto',
+          background: '#16242F', borderRadius: '18px 18px 0 0',
+          borderTop: '2px solid #C9A24A', padding: '20px 20px 26px',
+          fontFamily: "'Inter', sans-serif",
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={{ color: '#C9A24A', fontSize: '13px', fontWeight: 700, letterSpacing: '1px' }}>
+            STRONG {codigo.toUpperCase()}
+          </span>
+          <span style={{ flex: 1 }} />
+          <button
+            onClick={onCerrar}
+            style={{ background: 'transparent', border: 'none', color: '#9BB0BD', fontSize: '20px', cursor: 'pointer', padding: '4px 8px' }}
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ color: '#8E9EA7', fontSize: '12px', marginBottom: '12px' }}>
+          «{palabra}» · {idioma === 'hebreo' ? 'hebreo' : 'griego'}
+          {entrada?.p ? ` · ${entrada.p}` : ''}
+        </div>
+        {cargando && <div style={{ color: '#9BB0BD', fontSize: '14px' }}>Cargando…</div>}
+        {!cargando && !entrada && (
+          <div style={{ color: '#F2A0A0', fontSize: '14px' }}>Definición no disponible.</div>
+        )}
+        {!cargando && entrada && (
+          <>
+            <div dir="auto" style={{ color: '#EDF3F7', fontSize: '34px', marginBottom: '2px', lineHeight: 1.4 }}>
+              {entrada.l}
+            </div>
+            {entrada.x ? (
+              <div style={{ color: '#C9A24A', fontSize: '15px', fontStyle: 'italic', marginBottom: '12px' }}>
+                {entrada.x}
+              </div>
+            ) : null}
+            {entrada.g && entrada.g.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                {entrada.g.map((g) => (
+                  <span key={g} style={{ background: 'rgba(201, 162, 74, 0.16)', color: '#DFBE72', fontSize: '13px', padding: '4px 10px', borderRadius: '12px' }}>
+                    {g}
+                  </span>
+                ))}
+              </div>
+            )}
+            {entrada.d ? (
+              <div style={{ color: '#EDF3F7', fontSize: '15px', lineHeight: 1.6, marginBottom: '8px' }}>
+                {entrada.d}
+              </div>
+            ) : null}
+            {entrada.en ? (
+              <div style={{ color: '#9BB0BD', fontSize: '13.5px', lineHeight: 1.6, fontStyle: 'italic', marginBottom: '8px' }}>
+                <span style={{ fontStyle: 'normal', color: '#8E9EA7', fontSize: '11px' }}>(en inglés) </span>
+                {entrada.en}
+              </div>
+            ) : null}
+          </>
+        )}
+        <div style={{ color: '#8E9EA7', fontSize: '10px', lineHeight: 1.5, marginTop: '14px', borderTop: '1px solid rgba(201, 162, 74, 0.25)', paddingTop: '10px' }}>
+          {CREDITOS_STRONG}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const BibliaVista: React.FC = () => {
   const [version, setVersion] = useState<VersionBiblia>(() => {
     try {
@@ -69,6 +216,9 @@ export const BibliaVista: React.FC = () => {
   const [versiculos, setVersiculos] = useState<string[]>([])
   const [cargando, setCargando] = useState<boolean>(false)
   const [errorCarga, setErrorCarga] = useState<string>('')
+  // Concordancia Strong (solo RVG): un mapa índice-de-palabra -> código por versículo
+  const [fuertes, setFuertes] = useState<Map<number, string>[]>([])
+  const [strongSel, setStrongSel] = useState<{ codigo: string; palabra: string } | null>(null)
   const [leidos, setLeidos] = useState<Set<string>>(() => cargarLeidos())
 
   // Al abrir la Biblia: unir las marcas locales con las de la cuenta, para
@@ -120,7 +270,7 @@ export const BibliaVista: React.FC = () => {
   const porcentaje = totalBiblia > 0 ? Math.round((totalLeidos / totalBiblia) * 100) : 0
   const capituloLeido = leidos.has(claveCapitulo(codigo, capitulo))
 
-  // Cargar el capítulo al entrar a leer
+  // Cargar el capítulo al entrar a leer (y sus etiquetas Strong si es RVG)
   useEffect(() => {
     if (pantalla !== 'leyendo') return
     let activo = true
@@ -130,11 +280,21 @@ export const BibliaVista: React.FC = () => {
       .then((versos) => {
         if (!activo) return
         setVersiculos(versos)
+        if (version === 'rvg') {
+          Promise.all(versos.map((_, i) => fuertesDelVersiculo(codigo, capitulo, i + 1))).then(
+            (mapas) => {
+              if (activo) setFuertes(mapas)
+            }
+          )
+        } else {
+          setFuertes([])
+        }
         setCargando(false)
       })
       .catch(() => {
         if (!activo) return
         setVersiculos([])
+        setFuertes([])
         setCargando(false)
         setErrorCarga('No se pudo cargar este capítulo.')
       })
@@ -470,7 +630,8 @@ export const BibliaVista: React.FC = () => {
           <div>{metas.filter((m) => m.testamento === testamento).map(tarjetaLibro)}</div>
 
           <div style={{ color: '#8E9EA7', fontSize: '10.5px', fontFamily: "'Inter', sans-serif", lineHeight: 1.5, marginTop: '14px', textAlign: 'center' }}>
-            Textos: Reina-Valera 1909 (dominio público) · Versión Biblia Libre (CC BY-SA 4.0, vía eBible.org). Sin conexión.
+            Textos: Reina-Valera 1909 (dominio público) · Versión Biblia Libre (CC BY-SA 4.0, vía eBible.org) · Reina-Valera Gómez (CC BY-NC-ND 4.0, © 2004, 2010, 2023 Dr. Humberto Gómez Caballero). Sin conexión.
+            <br />Concordancia Strong (RVG): diccionario hebreo/griego © Sociedades Bíblicas Unidas (CC BY-SA 4.0) · Transliteración: Open Scriptures (CC BY-SA).
           </div>
         </>
       )}
@@ -579,7 +740,11 @@ export const BibliaVista: React.FC = () => {
                   }}
                 >
                   <sup style={{ color: '#C9A24A', fontSize: '11px', fontWeight: 700, marginRight: '5px', fontFamily: "'Inter', sans-serif" }}>{numero}</sup>
-                  {texto}
+                  <TextoVersiculo
+                    texto={texto}
+                    fuertes={version === 'rvg' ? fuertes[i] ?? new Map() : new Map()}
+                    onPalabra={(codigoStrong, palabra) => setStrongSel({ codigo: codigoStrong, palabra })}
+                  />
                 </div>
               )
             })}
@@ -741,7 +906,11 @@ export const BibliaVista: React.FC = () => {
               versiculos.map((texto, i) => (
                 <span key={i + 1}>
                   <sup style={{ color: tema.acento, fontSize: '0.62em', fontWeight: 700, marginRight: '4px', fontFamily: "'Inter', sans-serif" }}>{i + 1}</sup>
-                  {texto}{' '}
+                  <TextoVersiculo
+                    texto={texto}
+                    fuertes={version === 'rvg' ? fuertes[i] ?? new Map() : new Map()}
+                    onPalabra={(codigoStrong, palabra) => setStrongSel({ codigo: codigoStrong, palabra })}
+                  />{' '}
                 </span>
               ))}
           </div>
@@ -796,6 +965,13 @@ export const BibliaVista: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+      {strongSel && (
+        <ModalStrong
+          codigo={strongSel.codigo}
+          palabra={strongSel.palabra}
+          onCerrar={() => setStrongSel(null)}
+        />
       )}
     </div>
   )
