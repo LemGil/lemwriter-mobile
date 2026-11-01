@@ -92,11 +92,14 @@ export function PaqueteEstudianteModal({ proyecto, secciones, onClose, onGuardad
         autor: autorLimpio,
         secciones
       })
-      const nombre = await compartirPaqueteEstudiante(paquete)
+      const { nombre, rutaLocal } = await compartirPaqueteEstudiante(paquete)
       setListo(
         `✅ Paquete «${nombre}» creado con ${paquete.academia.codigos.length} códigos` +
           (omitidas > 0 ? ` (se omitieron ${omitidas} secciones vacías)` : '') +
           `. Compártelo por WhatsApp, Bluetooth o USB: el estudiante lo importa en la app Academia del Espíritu y la academia aparece en su lista como ${paquete.academia.numero || 'academia nueva'}.` +
+          (rutaLocal
+            ? ` También quedó guardado en este teléfono, en Documentos/${rutaLocal}: desde ahí lo puedes importar tú mismo sin buscarlo en ningún chat.`
+            : '') +
           ` Si mañana corriges el texto, genera el paquete otra vez con el MISMO identificador: la app actualiza el contenido y el progreso del estudiante se conserva.`
       )
     } catch (e) {

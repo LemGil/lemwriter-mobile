@@ -180,13 +180,50 @@ export function nombreArchivoPaquete(paquete: PaqueteEstudiante): string {
 }
 
 /**
+ * Ruta visible de la copia local del paquete: la carpeta pública de
+ * documentos del teléfono, junto a las carpetas de LemWriter
+ * (Documentos/LemWriter/Paquetes/<id>.json). Se puede buscar con la
+ * app de Archivos e importar desde ahí, sin pasar por ningún chat.
+ */
+export function rutaLocalPaquete(paquete: PaqueteEstudiante): string {
+  return `LemWriter/Paquetes/${nombreArchivoPaquete(paquete)}`
+}
+
+/**
+ * Guarda una copia del paquete en Documentos/LemWriter/Paquetes/ y
+ * devuelve su ruta; si no se puede (web, permisos), devuelve null y el
+ * compartir sigue funcionando igual.
+ */
+export async function guardarPaqueteEnLocal(paquete: PaqueteEstudiante): Promise<string | null> {
+  if (!Capacitor.isNativePlatform()) return null
+  try {
+    const ruta = rutaLocalPaquete(paquete)
+    await Filesystem.writeFile({
+      path: ruta,
+      data: serializarPaquete(paquete),
+      directory: Directory.Documents,
+      recursive: true,
+      encoding: Encoding.UTF8,
+    })
+    return ruta
+  } catch {
+    return null
+  }
+}
+
+/**
  * Guarda el paquete como archivo y abre la hoja de compartir del
  * teléfono (WhatsApp, Bluetooth, USB…), igual que el respaldo ZIP.
- * En web descarga el archivo. Devuelve el nombre del archivo.
+ * Antes de compartir deja una copia en Documentos/LemWriter/Paquetes/
+ * (ver guardarPaqueteEnLocal). En web descarga el archivo.
+ * Devuelve el nombre del archivo y la ruta local (o null).
  */
-export async function compartirPaqueteEstudiante(paquete: PaqueteEstudiante): Promise<string> {
+export async function compartirPaqueteEstudiante(
+  paquete: PaqueteEstudiante
+): Promise<{ nombre: string; rutaLocal: string | null }> {
   const nombre = nombreArchivoPaquete(paquete)
   const json = serializarPaquete(paquete)
+  const rutaLocal = await guardarPaqueteEnLocal(paquete)
   if (Capacitor.isNativePlatform()) {
     const escritura = await Filesystem.writeFile({
       path: `paquetes/${nombre}`,
@@ -200,7 +237,7 @@ export async function compartirPaqueteEstudiante(paquete: PaqueteEstudiante): Pr
       dialogTitle: 'Compartir paquete de academia',
       files: [escritura.uri],
     })
-    return nombre
+    return { nombre, rutaLocal }
   }
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -211,5 +248,5 @@ export async function compartirPaqueteEstudiante(paquete: PaqueteEstudiante): Pr
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 4000)
-  return nombre
+  return { nombre, rutaLocal }
 }
