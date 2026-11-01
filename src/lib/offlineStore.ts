@@ -28,6 +28,12 @@ export interface OfflineProyecto {
   created_at?: string
   user_id?: string
   _isOfflineOnly?: boolean
+  /** Identificador manual de la academia para la app del estudiante
+   *  (autor + número, ej. «lemgil-14»); solo proyectos tipo Academia
+   *  en LemWriter Local. Viaja dentro del paquete generado. */
+  academia_id?: string
+  /** Autor visible de la academia en la app del estudiante. */
+  academia_autor?: string
 }
 
 export interface OfflineSeccion {

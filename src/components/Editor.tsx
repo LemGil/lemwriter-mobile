@@ -37,6 +37,7 @@ import { SugerirTitulosModal } from './SugerirTitulosModal'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
 import { BibliaModal } from './BibliaModal'
 import { PublicarAcademiaModal } from './PublicarAcademiaModal'
+import { PaqueteEstudianteModal } from './PaqueteEstudianteModal'
 import {
   buscarCursoEnlazado,
   guardarEstadoPublicacion,
@@ -98,6 +99,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   const [indiceAbierto, setIndiceAbierto] = useState(false)
   const [exportarPDFModalAbierto, setExportarPDFModalAbierto] = useState(false)
   const [publicarAcademiaAbierto, setPublicarAcademiaAbierto] = useState(false)
+  const [paqueteEstudianteAbierto, setPaqueteEstudianteAbierto] = useState(false)
   const [estadoPublicacion, setEstadoPublicacion] = useState<EstadoPublicacionAcademia | null>(null)
   const [busquedaIndice, setBusquedaIndice] = useState('')
   const [nuevaSeccionModal, setNuevaSeccionModal] = useState(false)
@@ -1641,6 +1643,37 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                     : 'Sin publicar en la Academia'}
                 </span>
               </div>
+            )}
+            {ES_LOCAL && (
+              <button
+                onClick={() => setPaqueteEstudianteAbierto(true)}
+                title="Generar el paquete de esta academia para la app del estudiante (Academia del Espíritu)"
+                aria-label="Paquete para la app del estudiante"
+                style={{
+                  width: '100%',
+                  marginTop: '6px',
+                  height: '32px',
+                  padding: '0 10px',
+                  background: 'rgba(20, 43, 55, 0.85)',
+                  border: '1px solid rgba(201, 162, 74, 0.55)',
+                  color: '#DFBE72',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '11.5px',
+                  fontWeight: 800,
+                  fontFamily: "'Cinzel', serif",
+                  letterSpacing: '0.4px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }}
+              >
+                <span style={{ fontSize: '13px', lineHeight: 1 }}>📦</span>
+                <span>Paquete para la app del estudiante</span>
+              </button>
             )}
             </div>
           )}
@@ -4245,6 +4278,18 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
             setEstadoPublicacion(estado)
             guardarEstadoPublicacion(proyectoActual.id, estado)
           }}
+        />
+      )}
+
+      {/* Modal de Paquete para la app del estudiante (solo LemWriter Local) */}
+      {paqueteEstudianteAbierto && (
+        <PaqueteEstudianteModal
+          proyecto={proyectoActual}
+          secciones={secciones}
+          onClose={() => setPaqueteEstudianteAbierto(false)}
+          onGuardado={(cambios) =>
+            setProyectoActual((prev) => ({ ...prev, ...cambios }))
+          }
         />
       )}
 

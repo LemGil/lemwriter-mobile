@@ -137,6 +137,8 @@ function aProyectoApp(p: FolderProyecto): OfflineProyecto {
     id: p.id,
     title: p.titulo,
     type: p.tipo,
+    academia_id: p.academia_id,
+    academia_autor: p.academia_autor,
     created_at: p.fecha_creacion,
     updated_at: p.ultima_actualizacion
   }
@@ -179,14 +181,22 @@ async function persistirProyecto(proyecto: OfflineProyecto): Promise<void> {
       await store.crearProyecto(proyecto.type || 'sermon', proyecto.title || 'Sin título', 'en_progreso', {
         id: proyecto.id,
         fecha_creacion: fechaDe(proyecto.created_at),
-        ultima_actualizacion: fechaDe(proyecto.updated_at)
+        ultima_actualizacion: fechaDe(proyecto.updated_at),
+        academia_id: proyecto.academia_id,
+        academia_autor: proyecto.academia_autor
       })
       return
     }
-    const cambios: { titulo?: string; tipo?: string } = {}
+    const cambios: { titulo?: string; tipo?: string; academia_id?: string; academia_autor?: string } = {}
     if (proyecto.title && proyecto.title !== existente.titulo) cambios.titulo = proyecto.title
     if (proyecto.type && proyecto.type !== existente.tipo) cambios.tipo = proyecto.type
-    if (cambios.titulo || cambios.tipo) {
+    if ((proyecto.academia_id ?? '') !== (existente.academia_id ?? '')) {
+      cambios.academia_id = proyecto.academia_id ?? ''
+    }
+    if ((proyecto.academia_autor ?? '') !== (existente.academia_autor ?? '')) {
+      cambios.academia_autor = proyecto.academia_autor ?? ''
+    }
+    if (Object.keys(cambios).length > 0) {
       await store.actualizarProyecto(proyecto.id, cambios)
     }
   } catch (err) {

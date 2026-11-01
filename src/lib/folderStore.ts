@@ -27,6 +27,10 @@ export interface FolderProyecto {
   titulo: string
   tipo: string
   estado: string
+  /** Identificador manual para la app del estudiante (solo Academia). */
+  academia_id?: string
+  /** Autor visible de la academia en la app del estudiante. */
+  academia_autor?: string
   fecha_creacion: string
   ultima_actualizacion: string
   carpeta: string // ruta relativa: "<carpetaTipo>/<carpetaProyecto>"
@@ -526,7 +530,13 @@ export class FolderStore {
     tipo: string,
     titulo: string,
     estado = 'en_progreso',
-    opciones?: { id?: string; fecha_creacion?: string; ultima_actualizacion?: string }
+    opciones?: {
+      id?: string
+      fecha_creacion?: string
+      ultima_actualizacion?: string
+      academia_id?: string
+      academia_autor?: string
+    }
   ): Promise<FolderProyecto> {
     const carpetaTipo = TIPO_A_CARPETA[tipo]
     if (!carpetaTipo) throw new Error(`Tipo desconocido: ${tipo}`)
@@ -542,6 +552,8 @@ export class FolderStore {
       titulo,
       tipo,
       estado,
+      academia_id: opciones?.academia_id,
+      academia_autor: opciones?.academia_autor,
       fecha_creacion: opciones?.fecha_creacion ?? hoy(),
       ultima_actualizacion: opciones?.ultima_actualizacion ?? hoy(),
       carpeta: `${carpetaTipo}/${nombre}`,
@@ -557,6 +569,8 @@ export class FolderStore {
       titulo: p.titulo,
       tipo: p.tipo,
       estado: p.estado,
+      ...(p.academia_id ? { academia_id: p.academia_id } : {}),
+      ...(p.academia_autor ? { academia_autor: p.academia_autor } : {}),
       fecha_creacion: p.fecha_creacion,
       ultima_actualizacion: p.ultima_actualizacion,
       formato: 1,
@@ -583,6 +597,8 @@ export class FolderStore {
             titulo: String(d.titulo ?? 'Sin título'),
             tipo: String(d.tipo ?? ''),
             estado: String(d.estado ?? 'en_progreso'),
+            ...(d.academia_id ? { academia_id: String(d.academia_id) } : {}),
+            ...(d.academia_autor ? { academia_autor: String(d.academia_autor) } : {}),
             fecha_creacion: String(d.fecha_creacion ?? hoy()),
             ultima_actualizacion: String(d.ultima_actualizacion ?? hoy()),
             carpeta: `${carpetaTipo}/${nombre}`,
@@ -627,7 +643,13 @@ export class FolderStore {
   // las fichas de los .md se reescriben con los datos nuevos.
   async actualizarProyecto(
     id: string,
-    cambios: { titulo?: string; tipo?: string; estado?: string }
+    cambios: {
+      titulo?: string
+      tipo?: string
+      estado?: string
+      academia_id?: string
+      academia_autor?: string
+    }
   ): Promise<FolderProyecto> {
     const p = await this.buscarProyecto(id)
     if (!p) throw new Error(`Proyecto no encontrado: ${id}`)
@@ -649,6 +671,9 @@ export class FolderStore {
       titulo: nuevoTitulo,
       tipo: nuevoTipo,
       estado: cambios.estado ?? p.estado,
+      academia_id: cambios.academia_id !== undefined ? cambios.academia_id || undefined : p.academia_id,
+      academia_autor:
+        cambios.academia_autor !== undefined ? cambios.academia_autor || undefined : p.academia_autor,
       carpeta: carpetaDestino,
       ultima_actualizacion: hoy(),
     }
