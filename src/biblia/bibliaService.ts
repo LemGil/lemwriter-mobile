@@ -4,13 +4,16 @@
 //  - Versión Biblia Libre (CC BY-SA 4.0 — atribución a eBible.org / Free Bible Ministry), eBible.org spavbl
 //  - Reina-Valera Gómez 2010 (CC BY-NC-ND 4.0 — © 2004, 2010, 2023 Dr. Humberto Gómez Caballero;
 //    uso no comercial, sin modificar el texto), eBible.org sparvg
+//  - Biblia Latinoamericana Textual, «Palabra de Dios para ti» (CC BY-SA 4.0 — © 2020
+//    Asociación Bíblica Latinoamericana; se redistribuye con atribución), eBible.org spapddpt
 // Cada libro es un JSON que Vite separa en su propio chunk y se carga bajo demanda.
 
 import indiceRv1909 from './datos/rv1909/index.json'
 import indiceVbl from './datos/vbl/index.json'
 import indiceRvg from './datos/rvg/index.json'
+import indiceBlt from './datos/blt/index.json'
 
-export type VersionBiblia = 'rv1909' | 'vbl' | 'rvg'
+export type VersionBiblia = 'rv1909' | 'vbl' | 'rvg' | 'blt'
 
 export interface LibroMeta {
   codigo: string
@@ -35,12 +38,14 @@ const INDICES: Record<VersionBiblia, IndiceBiblia> = {
   rv1909: indiceRv1909 as IndiceBiblia,
   vbl: indiceVbl as IndiceBiblia,
   rvg: indiceRvg as IndiceBiblia,
+  blt: indiceBlt as IndiceBiblia,
 }
 
 export const VERSIONES_BIBLIA: { id: VersionBiblia; nombre: string; corta: string }[] = [
   { id: 'rv1909', nombre: 'Reina-Valera 1909', corta: 'RV1909' },
   { id: 'vbl', nombre: 'Versión Biblia Libre', corta: 'VBL' },
   { id: 'rvg', nombre: 'Reina-Valera Gómez', corta: 'RVG' },
+  { id: 'blt', nombre: 'Biblia Latinoamericana Textual', corta: 'BLT' },
 ]
 
 export function librosDe(version: VersionBiblia): LibroMeta[] {

@@ -11,7 +11,7 @@ import {
 describe('RVG (Reina-Valera Gómez) en la app', () => {
   it('está registrada como tercera versión', () => {
     const ids = VERSIONES_BIBLIA.map((v) => v.id)
-    expect(ids).toEqual(['rv1909', 'vbl', 'rvg'])
+    expect(ids.slice(0, 3)).toEqual(['rv1909', 'vbl', 'rvg'])
     expect(VERSIONES_BIBLIA.find((v) => v.id === 'rvg')?.corta).toBe('RVG')
   })
 
