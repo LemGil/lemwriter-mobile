@@ -47,6 +47,8 @@ export interface AcademiaPaquete {
   numero: string
   titulo: string
   autor?: string
+  nivel?: string
+  nivelOrden?: number
   codigos: CodigoPaquete[]
   cierre: string
 }
@@ -134,6 +136,7 @@ export function construirPaquete(opts: {
   titulo: string
   autor?: string
   secciones: SeccionParaPaquete[]
+  nivel?: { nombre: string; orden: number }
   fecha?: string
 }): { paquete: PaqueteEstudiante; omitidas: number } {
   const id = (opts.identificador ?? '').trim()
@@ -163,6 +166,7 @@ export function construirPaquete(opts: {
       numero: numeroVisibleDesdeId(id),
       titulo: (opts.titulo ?? '').trim(),
       ...(autor ? { autor } : {}),
+      ...(opts.nivel ? { nivel: opts.nivel.nombre, nivelOrden: opts.nivel.orden } : {}),
       codigos,
       cierre: '',
     },

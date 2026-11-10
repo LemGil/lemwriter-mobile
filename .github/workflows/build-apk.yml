@@ -41,6 +41,8 @@ jobs:
         env:
           BUILD_TARGET: capacitor
           BUILD_LOCAL: '1'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:capacitor
 
       - name: Sincronizar Capacitor (appId Local)

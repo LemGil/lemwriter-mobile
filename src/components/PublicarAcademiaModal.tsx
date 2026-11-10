@@ -7,6 +7,7 @@ import {
   type CursoEnlazado,
   type SeccionAPublicar
 } from '../lib/publicarAcademia'
+import { cargarConfigMensajeAcademia, guardarConfigMensajeAcademia, publicarPorMensajeAcademia } from '../lib/publicarMensajeAcademia'
 
 interface PublicarAcademiaModalProps {
   proyectoId: string
@@ -17,7 +18,13 @@ interface PublicarAcademiaModalProps {
 }
 
 function traducirError(e: unknown): string {
-  const msg = e instanceof Error ? e.message : String(e ?? '')
+  const comoObjeto = e as { message?: unknown } | null
+  const msg =
+    e instanceof Error
+      ? e.message
+      : typeof comoObjeto?.message === 'string'
+        ? comoObjeto.message
+        : String(e ?? '')
   if (/texto|lemwriter_seccion_id|lemwriter_id/.test(msg)) {
     return 'La Academia todavía no está preparada: falta correr la migración 013_enlace_lemwriter.sql en Supabase.'
   }
@@ -35,6 +42,13 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
   const [publicando, setPublicando] = useState(false)
   const [error, setError] = useState('')
   const [listo, setListo] = useState('')
+  const [tambienMensaje, setTambienMensaje] = useState(false)
+  const [idPaquete, setIdPaquete] = useState('')
+  const [cfgUrl, setCfgUrl] = useState('')
+  const [cfgAnon, setCfgAnon] = useState('')
+  const [cfgLlave, setCfgLlave] = useState('')
+  const [cfgGuardada, setCfgGuardada] = useState(() => cargarConfigMensajeAcademia() !== null)
+  const [errorCfg, setErrorCfg] = useState('')
 
   useEffect(() => {
     let vivo = true
@@ -83,6 +97,14 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
       }
       setEnlazado(cursoPublicado)
       onPublicado?.(cursoPublicado)
+      if (tambienMensaje) {
+        try {
+          const nota = await publicarPorMensajeAcademia({ identificador: idPaquete, titulo, secciones, nivel: (() => { const n = niveles.find((x) => x.id === nivelId); return n ? { nombre: n.nombre, orden: n.orden ?? 0 } : undefined })() })
+          setListo((prev) => `${prev} ${nota}`)
+        } catch (e) {
+          setListo((prev) => `${prev} ⚠️ La academia SÍ se publicó, pero el envío por MensajeAcademia no salió: ${e instanceof Error ? e.message : 'error desconocido'} — puedes reintentar publicando de nuevo con la casilla marcada.`)
+        }
+      }
     } catch (e) {
       setError(traducirError(e))
     } finally {
@@ -150,6 +172,44 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
                 <option key={n.id} value={n.id}>{n.nombre}</option>
               ))}
             </select>
+
+            <label style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '14.5px', marginBottom: '12px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={tambienMensaje} onChange={e => setTambienMensaje(e.target.checked)} disabled={publicando} />
+              📣 Publicar también por MensajeAcademia
+            </label>
+            {tambienMensaje && (
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase', color: '#9FB3BC', marginBottom: '6px', fontFamily: "'Cinzel', serif" }}>
+                  Identificador del paquete (autor + número)
+                </label>
+                <input value={idPaquete} onChange={e => setIdPaquete(e.target.value)} placeholder="lemgil-14" disabled={publicando} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                {!cfgGuardada && (
+                  <>
+                    <p style={{ fontSize: '13px', color: '#C8D2D8', lineHeight: 1.5, margin: '0 0 8px' }}>
+                      Configuración de MensajeAcademia (una sola vez; queda solo en esta PC):
+                    </p>
+                    <input value={cfgUrl} onChange={e => setCfgUrl(e.target.value)} placeholder="URL de Supabase (https://…)" style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                    <input value={cfgAnon} onChange={e => setCfgAnon(e.target.value)} placeholder="Llave anónima pública" style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                    <textarea value={cfgLlave} onChange={e => setCfgLlave(e.target.value)} placeholder="Contenido del archivo de llaves del maestro (el JSON completo)" rows={4} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                    {errorCfg && <p style={{ color: '#F2C4BC', fontSize: '13px' }}>{errorCfg}</p>}
+                    <button
+                      onClick={() => {
+                        try {
+                          guardarConfigMensajeAcademia({ url: cfgUrl, anonKey: cfgAnon, llaveJson: cfgLlave })
+                          setCfgGuardada(true)
+                          setErrorCfg('')
+                        } catch (e) {
+                          setErrorCfg(e instanceof Error ? e.message : 'La configuración no se pudo guardar.')
+                        }
+                      }}
+                      style={{ padding: '8px 14px', borderRadius: '8px', background: 'rgba(201, 162, 74, 0.2)', color: '#DFBE72', border: '1px solid rgba(201, 162, 74, 0.5)', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: '12.5px' }}
+                    >
+                      Guardar configuración
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {error && (
               <div style={{

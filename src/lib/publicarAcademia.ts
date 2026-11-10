@@ -246,12 +246,17 @@ export async function publicarProyectoEnAcademia(opciones: {
       t => !vigentes.has(t.lemwriter_seccion_id)
     )
     if (viejos.length > 0) {
+      const idsViejos = viejos.map(t => t.id)
+      // Primero los pasos de esos temas: su llave foranea bloquea el borrado.
+      // Y si aun asi algo lo impide, la publicacion NO se cae por esto:
+      // el curso y los temas ya quedaron publicados; solo se avisa.
+      await supabase.from('pasos').delete().in('tema_id', idsViejos)
       const { error: errorViejos } = await supabase
         .from('temas')
         .delete()
-        .in('id', viejos.map(t => t.id))
+        .in('id', idsViejos)
       if (errorViejos) {
-        throw new Error('Se publicó, pero no se pudieron quitar los temas que ya no están en el proyecto.')
+        console.warn('No se pudieron quitar los temas viejos del curso:', errorViejos)
       }
     }
   }
