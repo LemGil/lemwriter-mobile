@@ -8,7 +8,7 @@ import {
   type SeccionAPublicar
 } from '../lib/publicarAcademia'
 import { supabase } from '../lib/supabase'
-import { cargarConfigMensajeAcademia, guardarConfigMensajeAcademia, publicarPorMensajeAcademia } from '../lib/publicarMensajeAcademia'
+import { cargarLlaveDelMaestro, guardarLlaveDelMaestro, publicarPorMensajeAcademia } from '../lib/publicarMensajeAcademia'
 
 interface PublicarAcademiaModalProps {
   proyectoId: string
@@ -45,10 +45,9 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
   const [listo, setListo] = useState('')
   const [tambienMensaje, setTambienMensaje] = useState(false)
   const [idPaquete, setIdPaquete] = useState('')
-  const [cfgUrl, setCfgUrl] = useState('')
-  const [cfgAnon, setCfgAnon] = useState('')
   const [cfgLlave, setCfgLlave] = useState('')
-  const [cfgGuardada, setCfgGuardada] = useState(() => cargarConfigMensajeAcademia() !== null)
+  const [cambiandoLlave, setCambiandoLlave] = useState(false)
+  const [cfgGuardada, setCfgGuardada] = useState(() => cargarLlaveDelMaestro() !== null)
   const [errorCfg, setErrorCfg] = useState('')
   const [sesionEmail, setSesionEmail] = useState<string | null>(null)
   const [verificandoSesion, setVerificandoSesion] = useState(true)
@@ -260,28 +259,32 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
                   Identificador del paquete (autor + número)
                 </label>
                 <input value={idPaquete} onChange={e => setIdPaquete(e.target.value)} placeholder="lemgil-14" disabled={publicando} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
-                {!cfgGuardada && (
+                {cfgGuardada && !cambiandoLlave && (
+                  <button onClick={() => setCambiandoLlave(true)} style={{ background: 'transparent', border: 'none', color: '#9FB3BC', cursor: 'pointer', fontSize: '12.5px', textDecoration: 'underline', fontFamily: "'EB Garamond', Georgia, serif", padding: 0, marginBottom: '10px' }}>
+                    Cambiar llave del maestro
+                  </button>
+                )}
+                {(!cfgGuardada || cambiandoLlave) && (
                   <>
                     <p style={{ fontSize: '13px', color: '#C8D2D8', lineHeight: 1.5, margin: '0 0 8px' }}>
-                      Configuración de MensajeAcademia (una sola vez; queda solo en esta PC):
+                      Tu llave del maestro (una sola vez; queda solo en este dispositivo). La conexión la pone la propia app:
                     </p>
-                    <input value={cfgUrl} onChange={e => setCfgUrl(e.target.value)} placeholder="URL de Supabase (https://…)" style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
-                    <input value={cfgAnon} onChange={e => setCfgAnon(e.target.value)} placeholder="Llave anónima pública" style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
                     <textarea value={cfgLlave} onChange={e => setCfgLlave(e.target.value)} placeholder="Contenido del archivo de llaves del maestro (el JSON completo)" rows={4} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
                     {errorCfg && <p style={{ color: '#F2C4BC', fontSize: '13px' }}>{errorCfg}</p>}
                     <button
                       onClick={() => {
                         try {
-                          guardarConfigMensajeAcademia({ url: cfgUrl, anonKey: cfgAnon, llaveJson: cfgLlave })
+                          guardarLlaveDelMaestro(cfgLlave)
                           setCfgGuardada(true)
+                          setCambiandoLlave(false)
                           setErrorCfg('')
                         } catch (e) {
-                          setErrorCfg(e instanceof Error ? e.message : 'La configuración no se pudo guardar.')
+                          setErrorCfg(e instanceof Error ? e.message : 'La llave no se pudo guardar.')
                         }
                       }}
                       style={{ padding: '8px 14px', borderRadius: '8px', background: 'rgba(201, 162, 74, 0.2)', color: '#DFBE72', border: '1px solid rgba(201, 162, 74, 0.5)', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: '12.5px' }}
                     >
-                      Guardar configuración
+                      Guardar llave
                     </button>
                   </>
                 )}

@@ -6,11 +6,11 @@
 // «📦 Paquete» (construirPaquete), lo serializa igual, y lo publica
 // con aviso mediante la llave del maestro.
 //
-// Configuración (una sola vez, queda en ESTA PC, en el almacenamiento
-// local de LemWriter; nunca sale de la máquina ni va al repo):
-//   - URL y llave anónima del proyecto Supabase (las mismas de la app).
-//   - El contenido del archivo de llaves del maestro (se pega una vez;
-//     se valida al guardar: la privada debe corresponder a la pública).
+// Configuración: la conexión (URL y llave anónima) es la de la PROPIA
+// app, compilada en ella — las mismas con las que publica en la
+// Academia. En el dispositivo solo se guarda la llave del maestro (se
+// pega una vez; se valida al guardar: la privada debe corresponder a
+// la pública). Nunca va al repo.
 
 import {
   construirPaquete,
@@ -22,8 +22,10 @@ import {
   cargarLlaveMaestro,
   publicarEnsenanzaPorMensajeAcademia,
 } from '../mensajeacademia'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase'
 
-const CLAVE_CONFIG = 'lw-mensajeacademia-config-v1'
+const CLAVE_CONFIG_VIEJA = 'lw-mensajeacademia-config-v1'
+const CLAVE_LLAVE = 'lw-mensajeacademia-llave-v1'
 
 export interface ConfigMensajeAcademia {
   url: string
@@ -31,22 +33,25 @@ export interface ConfigMensajeAcademia {
   llaveJson: string
 }
 
-export function cargarConfigMensajeAcademia(): ConfigMensajeAcademia | null {
+export function cargarLlaveDelMaestro(): string | null {
   try {
-    const crudo = localStorage.getItem(CLAVE_CONFIG)
+    const directa = localStorage.getItem(CLAVE_LLAVE)
+    if (directa?.trim()) return directa
+    // Migración suave: la config vieja guardaba también URL y anónima
+    // pegadas a mano; se aprovecha solo su llave y el resto se ignora.
+    const crudo = localStorage.getItem(CLAVE_CONFIG_VIEJA)
     if (!crudo) return null
     const cfg = JSON.parse(crudo) as Partial<ConfigMensajeAcademia>
-    if (!cfg.url?.trim() || !cfg.anonKey?.trim() || !cfg.llaveJson?.trim()) return null
-    return { url: cfg.url.trim(), anonKey: cfg.anonKey.trim(), llaveJson: cfg.llaveJson }
+    return cfg.llaveJson?.trim() ? cfg.llaveJson : null
   } catch {
     return null
   }
 }
 
-export function guardarConfigMensajeAcademia(cfg: ConfigMensajeAcademia): void {
+export function guardarLlaveDelMaestro(llaveJson: string): void {
   // Validar ANTES de guardar: que la llave del maestro sea íntegra.
-  cargarLlaveMaestro(cfg.llaveJson)
-  localStorage.setItem(CLAVE_CONFIG, JSON.stringify(cfg))
+  cargarLlaveMaestro(llaveJson)
+  localStorage.setItem(CLAVE_LLAVE, llaveJson)
 }
 
 export async function publicarPorMensajeAcademia(opts: {
@@ -57,10 +62,15 @@ export async function publicarPorMensajeAcademia(opts: {
    *  para que la app del estudiante organice por niveles. */
   nivel?: { nombre: string; orden: number }
 }): Promise<string> {
-  const cfg = cargarConfigMensajeAcademia()
-  if (!cfg) {
+  const llaveJson = cargarLlaveDelMaestro()
+  if (!llaveJson) {
     throw new Error(
-      'falta la configuración de MensajeAcademia (URL, llave anónima y llave del maestro): márcala en el mismo diálogo, abajo de la casilla.',
+      'falta tu llave del maestro para firmar el envío por MensajeAcademia: pégala en el mismo diálogo, abajo de la casilla.',
+    )
+  }
+  if (SUPABASE_URL.includes('placeholder')) {
+    throw new Error(
+      'esta copia de la app no trae la conexión de la Academia (se compiló sin las variables de Supabase).',
     )
   }
   const errorDatos = validarDatosPaquete({
@@ -76,9 +86,9 @@ export async function publicarPorMensajeAcademia(opts: {
     secciones: opts.secciones,
     nivel: opts.nivel,
   })
-  const llave = cargarLlaveMaestro(cfg.llaveJson)
+  const llave = cargarLlaveMaestro(llaveJson)
   await publicarEnsenanzaPorMensajeAcademia(
-    { url: cfg.url, anonKey: cfg.anonKey },
+    { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY },
     llave,
     {
       academiaId: paquete.academia.id,
