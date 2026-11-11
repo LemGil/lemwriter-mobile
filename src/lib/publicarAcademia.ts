@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { isOfflineGuestSession } from './dataStore'
 
 /**
  * Publicación directa LemWriter → Academia del Espíritu.
@@ -144,8 +143,9 @@ export async function publicarProyectoEnAcademia(opciones: {
   secciones: SeccionAPublicar[]
 }): Promise<ResultadoPublicacion> {
   const { proyectoId, titulo, nivelId, secciones } = opciones
-  if (isOfflineGuestSession()) {
-    throw new Error('Estás como invitado sin sesión: publicar en la Academia necesita que hayas iniciado sesión.')
+  const { data: sesionActual } = await supabase.auth.getSession()
+  if (!sesionActual.session) {
+    throw new Error('Estás sin sesión: publicar en la Academia necesita que hayas iniciado sesión.')
   }
   const ordenadas = [...secciones].sort((a, b) => a.order_index - b.order_index)
 

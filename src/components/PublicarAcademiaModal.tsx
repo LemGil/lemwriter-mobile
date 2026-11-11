@@ -7,6 +7,7 @@ import {
   type CursoEnlazado,
   type SeccionAPublicar
 } from '../lib/publicarAcademia'
+import { supabase } from '../lib/supabase'
 import { cargarConfigMensajeAcademia, guardarConfigMensajeAcademia, publicarPorMensajeAcademia } from '../lib/publicarMensajeAcademia'
 
 interface PublicarAcademiaModalProps {
@@ -49,6 +50,12 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
   const [cfgLlave, setCfgLlave] = useState('')
   const [cfgGuardada, setCfgGuardada] = useState(() => cargarConfigMensajeAcademia() !== null)
   const [errorCfg, setErrorCfg] = useState('')
+  const [sesionEmail, setSesionEmail] = useState<string | null>(null)
+  const [verificandoSesion, setVerificandoSesion] = useState(true)
+  const [correo, setCorreo] = useState('')
+  const [clave, setClave] = useState('')
+  const [ingresando, setIngresando] = useState(false)
+  const [errorIngreso, setErrorIngreso] = useState('')
 
   useEffect(() => {
     let vivo = true
@@ -73,7 +80,24 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
     }
   }, [proyectoId])
 
+  useEffect(() => {
+    let vivo = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!vivo) return
+      setSesionEmail(data.session?.user?.email ?? null)
+      setVerificandoSesion(false)
+    }).catch(() => { if (vivo) setVerificandoSesion(false) })
+    const { data: escucha } = supabase.auth.onAuthStateChange((_e, sesion) => {
+      setSesionEmail(sesion?.user?.email ?? null)
+    })
+    return () => { vivo = false; escucha.subscription.unsubscribe() }
+  }, [])
+
   const publicar = async () => {
+    if (!sesionEmail) {
+      setError('Primero inicia sesión con tu cuenta para poder publicar.')
+      return
+    }
     if (nivelId === '') return
     setPublicando(true)
     setError('')
@@ -110,6 +134,38 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
     } finally {
       setPublicando(false)
     }
+  }
+
+  const ingresar = async () => {
+    if (!correo.trim() || !clave) return
+    setIngresando(true)
+    setErrorIngreso('')
+    try {
+      const { data, error: eIng } = await supabase.auth.signInWithPassword({ email: correo.trim(), password: clave })
+      if (eIng) throw eIng
+      setSesionEmail(data.user?.email ?? correo.trim())
+      setClave('')
+      try {
+        const [listaNiveles, curso] = await Promise.all([
+          cargarNivelesAcademia(),
+          buscarCursoEnlazado(proyectoId)
+        ])
+        setNiveles(listaNiveles)
+        setEnlazado(curso)
+        setNivelId(curso ? curso.nivel_id : (listaNiveles[0]?.id ?? ''))
+        setError('')
+      } catch { /* los datos ya cargados quedan como están */ }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      setErrorIngreso(/invalid login credentials/i.test(msg) ? 'Correo o contraseña incorrectos: revisa tus datos de LemWriter.' : msg || 'No se pudo iniciar sesión.')
+    } finally {
+      setIngresando(false)
+    }
+  }
+
+  const salir = async () => {
+    await supabase.auth.signOut()
+    setSesionEmail(null)
   }
 
   const nombreNivel = (id: number) => niveles.find(n => n.id === id)?.nombre || ''
@@ -151,6 +207,27 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
                 Ya está publicado como el curso «{enlazado.titulo}»
                 {nombreNivel(enlazado.nivel_id) ? ` en el nivel ${nombreNivel(enlazado.nivel_id)}` : ''}.
                 Al publicar de nuevo se <strong>actualiza en el mismo lugar</strong>, sin duplicar y sin perder el avance de los estudiantes.
+              </div>
+            )}
+
+            {verificandoSesion ? (
+              <p style={{ fontSize: '13.5px', color: '#C8D2D8', margin: '0 0 12px' }}>Verificando tu sesión…</p>
+            ) : sesionEmail ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(48, 164, 108, 0.12)', border: '1px solid rgba(74, 224, 152, 0.35)', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px', fontSize: '13.5px' }}>
+                <span>🔓 Sesión iniciada: <strong>{sesionEmail}</strong></span>
+                <button onClick={salir} style={{ background: 'transparent', border: 'none', color: '#9FB3BC', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', fontFamily: "'EB Garamond', Georgia, serif" }}>Salir</button>
+              </div>
+            ) : (
+              <div style={{ background: 'rgba(201, 162, 74, 0.10)', border: '1px solid rgba(201, 162, 74, 0.4)', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
+                <p style={{ margin: '0 0 10px', fontSize: '13.5px', lineHeight: 1.5 }}>
+                  Para publicar necesitas <strong>iniciar sesión una vez</strong> con tu cuenta de LemWriter. La sesión queda guardada en esta app.
+                </p>
+                <input value={correo} onChange={e => setCorreo(e.target.value)} placeholder="Tu correo" type="email" autoComplete="email" disabled={ingresando} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                <input value={clave} onChange={e => setClave(e.target.value)} placeholder="Tu contraseña" type="password" autoComplete="current-password" disabled={ingresando} onKeyDown={e => { if (e.key === 'Enter') void ingresar() }} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '10px', background: '#0E1E28', color: '#F4EFE3', border: '1px solid rgba(201, 162, 74, 0.4)', fontFamily: "'EB Garamond', Georgia, serif", fontSize: '15px' }} />
+                {errorIngreso && <p style={{ color: '#F2C4BC', fontSize: '13px', margin: '0 0 10px' }}>{errorIngreso}</p>}
+                <button onClick={ingresar} disabled={ingresando || !correo.trim() || !clave} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(201, 162, 74, 0.2)', color: '#DFBE72', border: '1px solid rgba(201, 162, 74, 0.5)', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: '12.5px', opacity: ingresando || !correo.trim() || !clave ? 0.6 : 1 }}>
+                  {ingresando ? 'Ingresando…' : 'Ingresar para publicar'}
+                </button>
               </div>
             )}
 
@@ -242,14 +319,14 @@ export function PublicarAcademiaModal({ proyectoId, titulo, secciones, onClose, 
               </button>
               <button
                 onClick={publicar}
-                disabled={publicando || nivelId === '' || secciones.length === 0}
+                disabled={publicando || !sesionEmail || nivelId === '' || secciones.length === 0}
                 style={{
                   flex: 2, padding: '11px', borderRadius: '8px',
-                  cursor: publicando || nivelId === '' ? 'default' : 'pointer',
+                  cursor: publicando || !sesionEmail || nivelId === '' ? 'default' : 'pointer',
                   background: 'linear-gradient(135deg, #C9A24A 0%, #9C7B2D 100%)',
                   border: '1px solid #C9A24A', color: '#142B37',
                   fontFamily: "'Cinzel', serif", fontSize: '12px', fontWeight: 800, letterSpacing: '0.5px',
-                  opacity: publicando || nivelId === '' ? 0.6 : 1
+                  opacity: publicando || !sesionEmail || nivelId === '' ? 0.6 : 1
                 }}
               >
                 {publicando ? 'Publicando…' : enlazado ? 'Actualizar en Academia' : 'Publicar en Academia'}
