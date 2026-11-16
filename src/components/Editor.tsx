@@ -30,8 +30,9 @@ import {
 } from '../lib/dataStore'
 import { ES_LOCAL } from '../lib/flavor'
 import { htmlATextoCompartible, compartirTextoPlano } from '../lib/compartirSeccion'
-import { compartirArchivo, seccionAImagenBlob, seccionAPdfBytes } from '../lib/compartirImagen'
+import { compartirArchivo, documentoEnPartesAPdfBytes, seccionAImagenBlob, seccionAPdfBytes } from '../lib/compartirImagen'
 import { ExportarPDFModal } from './ExportarPDFModal'
+import { seccionEnPartesMinisterial } from '../utils/exportarPDF'
 import { ModoLecturaModal, TemaLectura } from './ModoLecturaModal'
 import { SugerirTitulosModal } from './SugerirTitulosModal'
 import { ConflictoResolucionModal } from './ConflictoResolucionModal'
@@ -133,7 +134,7 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
   const [urlEnlace, setUrlEnlace] = useState('')
   const [pantallaCompleta, setPantallaCompleta] = useState(false)
   const [menuCompartir, setMenuCompartir] = useState(false)
-  const [compartiendo, setCompartiendo] = useState<'' | 'texto' | 'imagen' | 'pdf'>('')
+  const [compartiendo, setCompartiendo] = useState<'' | 'texto' | 'imagen' | 'pdf' | 'pdfimprimir'>('')
 
   // Estado de Conflictos de Edición
   const [conflictoActivo, setConflictoActivo] = useState<EditConflict | null>(null)
@@ -308,6 +309,28 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
     } catch (e) {
       if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
         toast.error('No se pudo crear el PDF')
+      }
+    } finally {
+      setCompartiendo('')
+    }
+  }
+
+  const compartirComoPdfImprimir = async () => {
+    if (!seccionActiva) return
+    try {
+      setCompartiendo('pdfimprimir')
+      const html = editor?.getHTML() || seccionActiva.content || ''
+      if (!htmlATextoCompartible(html)) {
+        toast.error('La sección está vacía')
+        return
+      }
+      const partes = seccionEnPartesMinisterial(proyectoActual, { ...seccionActiva, content: html })
+      const bytes = await documentoEnPartesAPdfBytes(partes)
+      await compartirArchivo({ titulo: seccionActiva.title || 'Sección', extension: 'pdf', bytes })
+      setMenuCompartir(false)
+    } catch (e) {
+      if (!/cancel/i.test(String((e as Error)?.message ?? e))) {
+        toast.error('No se pudo crear el PDF para imprimir')
       }
     } finally {
       setCompartiendo('')
@@ -4592,6 +4615,13 @@ export default function Editor({ proyecto, onBack, onUpdateProyecto }: EditorPro
                   titulo: 'PDF',
                   detalle: 'Documento para leer e imprimir; no se puede copiar',
                   accion: compartirComoPdf
+                },
+                {
+                  id: 'pdfimprimir' as const,
+                  icono: '🖨️',
+                  titulo: 'PDF para imprimir',
+                  detalle: 'Esta sección sola, en papel blanco como el documento',
+                  accion: compartirComoPdfImprimir
                 }
               ]
             ).map((op) => (

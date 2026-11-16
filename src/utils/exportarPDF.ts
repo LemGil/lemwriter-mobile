@@ -567,6 +567,10 @@ const ENTIDADES_HTML: Record<string, string> = {
 function cuerpoSeguroParaDibujo(cuerpo: string): string {
   let limpio = cuerpo
     .replace(/<img[^>]*>/gi, '')
+    // Incrustados (videos, audios, marcos): tampoco viajan en el dibujo;
+    // un recurso externo dentro de la imagen la puede tumbar entera.
+    .replace(/<(iframe|video|audio|object|embed|source|track|link)[^>]*>/gi, '')
+    .replace(/<\/(iframe|video|audio|object|embed)>/gi, '')
     .replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (m, nombre: string) =>
       ['amp', 'lt', 'gt', 'quot', 'apos'].includes(nombre)
         ? m
@@ -631,6 +635,24 @@ export function documentoMinisterialEnPartes(htmlCompleto: string): string[] {
     .filter((p) => p.trim().length > 0)
   const partes = pedazos.length > 0 ? pedazos : [limpio]
   return partes.map((p) => envolverParaDibujo(estilo, p))
+}
+
+/**
+ * El documento ministerial de UNA sola sección (la que se está
+ * viendo), en partes dibujables: encabezado breve y la sección. Es la
+ * vía de «PDF para imprimir» del menú Compartir de la sección.
+ */
+export function seccionEnPartesMinisterial(
+  proyecto: { title: string; type?: string; updated_at?: string },
+  seccion: Seccion
+): string[] {
+  const html = generarHTMLMinisterial(proyecto, [seccion], {
+    tamanoLetra: 'normal',
+    incluirSumario: false,
+    incluirEncabezadoMinisterial: true,
+    incluirNotasAlPie: true,
+  })
+  return documentoMinisterialEnPartes(html)
 }
 
 export async function imprimirOExportarPDF(
