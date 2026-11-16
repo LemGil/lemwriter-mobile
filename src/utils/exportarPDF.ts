@@ -539,7 +539,12 @@ function aNumeroRomano(num: number): string {
  * papel blanco y la tipografía del documento aplicados al contenedor.
  */
 export function documentoMinisterialParaDibujo(htmlCompleto: string): string {
-  const estilo = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(htmlCompleto)?.[1] ?? ''
+  const estiloCrudo = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(htmlCompleto)?.[1] ?? ''
+  // Fuera el @import de las fuentes web: dentro del dibujo (un SVG, XML
+  // estricto) esas fuentes no cargan de todos modos, y su URL trae «&»
+  // sueltos (&family=…) que invalidan el documento y dejaban el botón
+  // muerto sin decir nada.
+  const estilo = estiloCrudo.replace(/@import\s+(?:url\([^)]*\)|"[^"]*"|'[^']*')\s*;/g, '')
   const cuerpo = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(htmlCompleto)?.[1] ?? htmlCompleto
   return (
     `<div xmlns="http://www.w3.org/1999/xhtml" style="width:1080px;background:#FFFFFF;color:#1A1A1A;` +
@@ -560,12 +565,21 @@ export async function imprimirOExportarPDF(
   // de compartir del sistema, desde donde se imprime o se guarda. En
   // web/PC se sigue imprimiendo como siempre.
   if (Capacitor.isNativePlatform()) {
+    let bytes: Uint8Array
     try {
-      const bytes = await documentoHtmlAPdfBytes(documentoMinisterialParaDibujo(html))
-      await compartirArchivo({ titulo: proyecto.title, extension: 'pdf', bytes })
+      bytes = await documentoHtmlAPdfBytes(documentoMinisterialParaDibujo(html))
     } catch (e) {
       console.warn('Error generating PDF in the app:', e)
+      alert(
+        'No se pudo generar el PDF: ' +
+          (e instanceof Error ? e.message : String(e))
+      )
+      return
     }
+    // Si el usuario cancela la hoja de compartir, no es un error.
+    await compartirArchivo({ titulo: proyecto.title, extension: 'pdf', bytes }).catch(
+      () => {}
+    )
     return
   }
 
