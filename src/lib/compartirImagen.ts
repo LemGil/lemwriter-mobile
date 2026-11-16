@@ -309,8 +309,8 @@ export function recortarCanvasAlContenido(
   return recortado
 }
 
-/** Corta un lienzo ya dibujado en páginas A4 y arma el PDF (sin fondo vacío al final). */
-export function canvasAPdfBytes(canvasOriginal: HTMLCanvasElement, fondo: string): Uint8Array {
+/** Corta un lienzo ya dibujado en páginas A4 (un JPEG por página), sin fondo vacío al final. */
+export function canvasAPaginasJpeg(canvasOriginal: HTMLCanvasElement, fondo: string): PaginaJpeg[] {
   const canvas = recortarCanvasAlContenido(canvasOriginal, fondo)
   const ancho = canvas.width
   const altoPagina = Math.floor((ancho * ALTO_PAGINA) / ANCHO_PAGINA)
@@ -328,7 +328,12 @@ export function canvasAPdfBytes(canvasOriginal: HTMLCanvasElement, fondo: string
     const dataUrl = hoja.toDataURL('image/jpeg', 0.92)
     paginas.push({ datos: dataUrlABytes(dataUrl), ancho, alto: altoPagina })
   }
-  return construirPdfPaginas(paginas)
+  return paginas
+}
+
+/** Corta un lienzo ya dibujado en páginas A4 y arma el PDF (sin fondo vacío al final). */
+export function canvasAPdfBytes(canvasOriginal: HTMLCanvasElement, fondo: string): Uint8Array {
+  return construirPdfPaginas(canvasAPaginasJpeg(canvasOriginal, fondo))
 }
 
 /** La sección como PDF (páginas A4 listas para leer e imprimir). */
@@ -344,6 +349,22 @@ export async function seccionAPdfBytes(titulo: string, html: string): Promise<Ui
 export async function documentoHtmlAPdfBytes(documentoHtml: string): Promise<Uint8Array> {
   const canvas = await htmlDocumentoACanvas(documentoHtml, '#FFFFFF')
   return canvasAPdfBytes(canvas, '#FFFFFF')
+}
+
+/**
+ * Un documento largo ya armado, dibujado POR PARTES: cada parte se
+ * dibuja por separado (al tamaño de una sección, que es el que el
+ * dibujo soporta bien) y todas las páginas se unen en un solo PDF.
+ * El documento entero de una sola pieza no se podía dibujar en el
+ * teléfono: la imagen ni siquiera cargaba.
+ */
+export async function documentoEnPartesAPdfBytes(partes: string[]): Promise<Uint8Array> {
+  const paginas: PaginaJpeg[] = []
+  for (const parte of partes) {
+    const canvas = await htmlDocumentoACanvas(parte, '#FFFFFF')
+    paginas.push(...canvasAPaginasJpeg(canvas, '#FFFFFF'))
+  }
+  return construirPdfPaginas(paginas)
 }
 
 const ANCHO_PAGINA = 595.28

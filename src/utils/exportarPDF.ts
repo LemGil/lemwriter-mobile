@@ -1,7 +1,7 @@
 import { Proyecto } from '../types'
 import { Seccion } from '../components/Editor'
 import { Capacitor } from '@capacitor/core'
-import { compartirArchivo, documentoHtmlAPdfBytes } from '../lib/compartirImagen'
+import { compartirArchivo, documentoEnPartesAPdfBytes } from '../lib/compartirImagen'
 
 interface OpcionesExportacionPDF {
   tamanoLetra: 'normal' | 'grande' | 'pulpito'
@@ -533,12 +533,8 @@ function aNumeroRomano(num: number): string {
   return resultado || 'I'
 }
 
-/**
- * Envuelve el HTML ministerial completo en un <div> autocontenido para
- * poder dibujarlo en un lienzo: conserva su <style> y su cuerpo, con el
- * papel blanco y la tipografía del documento aplicados al contenedor.
- */
-export function documentoMinisterialParaDibujo(htmlCompleto: string): string {
+/** Extrae el <style> (sin @import) y el cuerpo de un documento HTML completo. */
+function extraerEstiloYCuerpo(htmlCompleto: string): { estilo: string; cuerpo: string } {
   const estiloCrudo = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(htmlCompleto)?.[1] ?? ''
   // Fuera el @import de las fuentes web: dentro del dibujo (un SVG, XML
   // estricto) esas fuentes no cargan de todos modos, y su URL trae «&»
@@ -546,11 +542,85 @@ export function documentoMinisterialParaDibujo(htmlCompleto: string): string {
   // muerto sin decir nada.
   const estilo = estiloCrudo.replace(/@import\s+(?:url\([^)]*\)|"[^"]*"|'[^']*')\s*;/g, '')
   const cuerpo = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(htmlCompleto)?.[1] ?? htmlCompleto
+  return { estilo, cuerpo }
+}
+
+// Entidades HTML con nombre que el XML del dibujo no acepta, pasadas a
+// su forma numérica (se ven igual). Las del editor llegan tal cual.
+const ENTIDADES_HTML: Record<string, string> = {
+  nbsp: '&#160;', hellip: '&#8230;', mdash: '&#8212;', ndash: '&#8211;',
+  lsquo: '&#8216;', rsquo: '&#8217;', ldquo: '&#8220;', rdquo: '&#8221;',
+  laquo: '&#171;', raquo: '&#187;', copy: '&#169;', reg: '&#174;',
+  iexcl: '&#161;', iquest: '&#191;', middot: '&#183;', bull: '&#8226;',
+  aacute: '&#225;', eacute: '&#233;', iacute: '&#237;', oacute: '&#243;', uacute: '&#250;',
+  Aacute: '&#193;', Eacute: '&#201;', Iacute: '&#205;', Oacute: '&#211;', Uacute: '&#218;',
+  ntilde: '&#241;', Ntilde: '&#209;', uuml: '&#252;', Uuml: '&#220;',
+  agrave: '&#224;', egrave: '&#232;', ograve: '&#242;', acirc: '&#226;', ecirc: '&#234;', ocirc: '&#244;',
+  atilde: '&#227;', otilde: '&#245;', ccedil: '&#231;', deg: '&#176;',
+}
+
+/**
+ * Deja el cuerpo listo para dibujarlo: sin imágenes (no viajan en el
+ * dibujo, igual que en la tarjeta de la sección) y con las entidades
+ * con nombre pasadas a su forma numérica.
+ */
+function cuerpoSeguroParaDibujo(cuerpo: string): string {
+  let limpio = cuerpo
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (m, nombre: string) =>
+      ['amp', 'lt', 'gt', 'quot', 'apos'].includes(nombre)
+        ? m
+        : (ENTIDADES_HTML[nombre] ?? `&amp;${nombre};`)
+    )
+  // El cuerpo viene envuelto en <div class="documento-wrapper">…</div>:
+  // al partir el documento en pedazos, ese envoltorio quedaría abierto
+  // en una parte y cerrado en otra, y el dibujo (XML estricto) lo
+  // rechaza. Sus estilos son solo ancho máximo y centrado — dentro del
+  // contenedor del dibujo no cambian nada — así que se retira.
+  if (limpio.includes('<div class="documento-wrapper">')) {
+    limpio = limpio.replace('<div class="documento-wrapper">', '')
+    const ultimoCierre = limpio.lastIndexOf('</div>')
+    if (ultimoCierre >= 0) {
+      limpio = limpio.slice(0, ultimoCierre) + limpio.slice(ultimoCierre + '</div>'.length)
+    }
+  }
+  return limpio
+}
+
+/** Envuelve un cuerpo (o un pedazo) en el <div> autocontenido para dibujarlo. */
+function envolverParaDibujo(estilo: string, cuerpo: string): string {
   return (
     `<div xmlns="http://www.w3.org/1999/xhtml" style="width:1080px;background:#FFFFFF;color:#1A1A1A;` +
     `font-family:'Crimson Pro',Georgia,serif;padding:64px 72px;box-sizing:border-box;">` +
     `<style>${estilo}</style>${cuerpo}</div>`
   )
+}
+
+/**
+ * Envuelve el HTML ministerial completo en un <div> autocontenido para
+ * poder dibujarlo en un lienzo: conserva su <style> y su cuerpo, con el
+ * papel blanco y la tipografía del documento aplicados al contenedor.
+ */
+export function documentoMinisterialParaDibujo(htmlCompleto: string): string {
+  const { estilo, cuerpo } = extraerEstiloYCuerpo(htmlCompleto)
+  return envolverParaDibujo(estilo, cuerpoSeguroParaDibujo(cuerpo))
+}
+
+/**
+ * El documento ministerial partido en pedazos dibujables: la portada
+ * con el sumario y una parte por sección. Un documento largo entero no
+ * se puede dibujar de una pieza en el teléfono (la imagen no carga);
+ * por partes — al tamaño de una sección — sí, y cada sección empieza
+ * en página nueva, como en el diseño impreso.
+ */
+export function documentoMinisterialEnPartes(htmlCompleto: string): string[] {
+  const { estilo, cuerpo } = extraerEstiloYCuerpo(htmlCompleto)
+  const limpio = cuerpoSeguroParaDibujo(cuerpo)
+  const pedazos = limpio
+    .split(/(?=<section class="seccion-bloque")/g)
+    .filter((p) => p.trim().length > 0)
+  const partes = pedazos.length > 0 ? pedazos : [limpio]
+  return partes.map((p) => envolverParaDibujo(estilo, p))
 }
 
 export async function imprimirOExportarPDF(
@@ -567,7 +637,7 @@ export async function imprimirOExportarPDF(
   if (Capacitor.isNativePlatform()) {
     let bytes: Uint8Array
     try {
-      bytes = await documentoHtmlAPdfBytes(documentoMinisterialParaDibujo(html))
+      bytes = await documentoEnPartesAPdfBytes(documentoMinisterialEnPartes(html))
     } catch (e) {
       console.warn('Error generating PDF in the app:', e)
       alert(
