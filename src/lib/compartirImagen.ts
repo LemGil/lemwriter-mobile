@@ -360,8 +360,22 @@ export async function documentoHtmlAPdfBytes(documentoHtml: string): Promise<Uin
  */
 export async function documentoEnPartesAPdfBytes(partes: string[]): Promise<Uint8Array> {
   const paginas: PaginaJpeg[] = []
-  for (const parte of partes) {
-    const canvas = await htmlDocumentoACanvas(parte, '#FFFFFF')
+  for (let i = 0; i < partes.length; i++) {
+    let canvas: HTMLCanvasElement
+    try {
+      canvas = await htmlDocumentoACanvas(partes[i], '#FFFFFF')
+    } catch (e) {
+      // El aviso nombra la parte que falló: sin eso no hay forma de
+      // saber qué sección del documento no se deja dibujar.
+      const titulo =
+        /<h2 class="seccion-titulo">([^<]+)<\/h2>/.exec(partes[i])?.[1] ??
+        (i === 0 ? 'portada y sumario' : `parte ${i + 1}`)
+      throw new Error(
+        `fallo el dibujo de la parte ${i + 1} de ${partes.length} ` +
+          `(«${titulo}», ${partes[i].length} caracteres): ` +
+          (e instanceof Error ? e.message : String(e))
+      )
+    }
     paginas.push(...canvasAPaginasJpeg(canvas, '#FFFFFF'))
   }
   return construirPdfPaginas(paginas)
