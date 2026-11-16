@@ -572,6 +572,11 @@ function cuerpoSeguroParaDibujo(cuerpo: string): string {
         ? m
         : (ENTIDADES_HTML[nombre] ?? `&amp;${nombre};`)
     )
+    // «&» sueltos (sin entidad): el XML del dibujo los rechaza y la
+    // imagen no carga. El propio generador trae uno: el tipo
+    // «conferencia» se titula «Conferencia & Discipulado». Escapado se
+    // ve igual y el dibujo lo acepta.
+    .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;')
   // El cuerpo viene envuelto en <div class="documento-wrapper">…</div>:
   // al partir el documento en pedazos, ese envoltorio quedaría abierto
   // en una parte y cerrado en otra, y el dibujo (XML estricto) lo
@@ -584,6 +589,11 @@ function cuerpoSeguroParaDibujo(cuerpo: string): string {
       limpio = limpio.slice(0, ultimoCierre) + limpio.slice(ultimoCierre + '</div>'.length)
     }
   }
+  // El <main> que envuelve las secciones quedaría igual que el
+  // envoltorio: abierto en la portada y cerrado en la última parte, y
+  // el dibujo lo rechaza — por eso la parte 1 no se dibujaba nunca.
+  // Es una etiqueta semántica sin estilos: se retira también.
+  limpio = limpio.replace(/<\/?main\s*>/gi, '')
   return limpio
 }
 

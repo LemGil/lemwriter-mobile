@@ -370,9 +370,15 @@ export async function documentoEnPartesAPdfBytes(partes: string[]): Promise<Uint
       const titulo =
         /<h2 class="seccion-titulo">([^<]+)<\/h2>/.exec(partes[i])?.[1] ??
         (i === 0 ? 'portada y sumario' : `parte ${i + 1}`)
+      const muestra = partes[i]
+        .slice(partes[i].indexOf('</style>') + 8)
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 70)
       throw new Error(
         `fallo el dibujo de la parte ${i + 1} de ${partes.length} ` +
-          `(«${titulo}», ${partes[i].length} caracteres): ` +
+          `(«${titulo}», ${partes[i].length} caracteres, empieza: «${muestra}»): ` +
           (e instanceof Error ? e.message : String(e))
       )
     }
