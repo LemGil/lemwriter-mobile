@@ -80,8 +80,19 @@ export function construirSvgDocumento(
 }
 
 async function documentoACanvas(titulo: string, html: string): Promise<HTMLCanvasElement> {
-  const documentoHtml = construirDocumentoCompartible(titulo, html)
+  return htmlDocumentoACanvas(construirDocumentoCompartible(titulo, html), '#0A1A31')
+}
 
+/**
+ * Dibuja un documento HTML autocontenido (un <div> con sus estilos) en un
+ * lienzo: mide su altura real, lo rasteriza a la escala de calidad y lo
+ * deja sobre el fondo dado. Lo usan la tarjeta de la sección y el
+ * documento ministerial de «Exportar PDF».
+ */
+async function htmlDocumentoACanvas(
+  documentoHtml: string,
+  fondo: string
+): Promise<HTMLCanvasElement> {
   // Medir la altura real con un contenedor fuera de pantalla
   const medidor = document.createElement('div')
   medidor.style.position = 'fixed'
@@ -108,7 +119,7 @@ async function documentoACanvas(titulo: string, html: string): Promise<HTMLCanva
   canvas.height = Math.round(altoReal * escala)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Sin contexto de dibujo')
-  ctx.fillStyle = '#0A1A31'
+  ctx.fillStyle = fondo
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
   return canvas
@@ -216,9 +227,91 @@ export function construirPdfPaginas(paginas: PaginaJpeg[]): Uint8Array {
   return salida
 }
 
-/** La sección como PDF (páginas A4 listas para leer e imprimir). */
-export async function seccionAPdfBytes(titulo: string, html: string): Promise<Uint8Array> {
-  const canvas = await documentoACanvas(titulo, html)
+// ─── Recorte del fondo vacío al final del lienzo ─────────────────────────────
+//
+// El lienzo medido puede quedar más alto que el contenido (rellenos y
+// márgenes del documento): sin recorte, ese sobrante se convertía en
+// páginas enteras de puro fondo al final del PDF. Se busca la última fila
+// con algo dibujado y se corta ahí, con un margen breve de respiro.
+
+type Rgb = [number, number, number]
+
+function colorAFondoRgb(color: string): Rgb {
+  const limpio = color.replace('#', '')
+  return [
+    parseInt(limpio.slice(0, 2), 16),
+    parseInt(limpio.slice(2, 4), 16),
+    parseInt(limpio.slice(4, 6), 16),
+  ]
+}
+
+/**
+ * Última fila (0-based) con algún píxel distinto del fondo, o -1 si todo
+ * es fondo. Función pura: opera sobre los píxeles ya leídos. Revisa una
+ * de cada dos columnas (el trazo del texto dibujado es más ancho).
+ */
+export function ultimaFilaConContenido(
+  datos: Uint8ClampedArray,
+  ancho: number,
+  alto: number,
+  fondo: Rgb,
+  tolerancia = 14
+): number {
+  for (let y = alto - 1; y >= 0; y--) {
+    const fila = y * ancho * 4
+    for (let x = 0; x < ancho; x += 2) {
+      const i = fila + x * 4
+      if (
+        Math.abs(datos[i] - fondo[0]) > tolerancia ||
+        Math.abs(datos[i + 1] - fondo[1]) > tolerancia ||
+        Math.abs(datos[i + 2] - fondo[2]) > tolerancia
+      ) {
+        return y
+      }
+    }
+  }
+  return -1
+}
+
+/**
+ * Devuelve el lienzo recortado hasta su último contenido (más un margen).
+ * Si no sobra nada apreciable, devuelve el mismo lienzo sin copiarlo.
+ * Lee el lienzo por franjas desde abajo para no cargarlo todo en memoria.
+ */
+export function recortarCanvasAlContenido(
+  canvas: HTMLCanvasElement,
+  fondo: string
+): HTMLCanvasElement {
+  const ctx = canvas.getContext('2d')
+  if (!ctx || canvas.height < 400) return canvas
+  const fondoRgb = colorAFondoRgb(fondo)
+  const FRANJA = 512
+  let ultima = -1
+  for (let base = canvas.height; base > 0 && ultima < 0; base -= FRANJA) {
+    const y0 = Math.max(0, base - FRANJA)
+    const h = base - y0
+    const datos = ctx.getImageData(0, y0, canvas.width, h).data
+    const fila = ultimaFilaConContenido(datos, canvas.width, h, fondoRgb)
+    if (fila >= 0) ultima = y0 + fila
+  }
+  if (ultima < 0) return canvas
+  const margen = Math.round(canvas.width * 0.035)
+  const nuevoAlto = Math.min(canvas.height, ultima + 1 + margen)
+  if (canvas.height - nuevoAlto < 40) return canvas
+  const recortado = document.createElement('canvas')
+  recortado.width = canvas.width
+  recortado.height = nuevoAlto
+  const rctx = recortado.getContext('2d')
+  if (!rctx) return canvas
+  rctx.fillStyle = fondo
+  rctx.fillRect(0, 0, recortado.width, recortado.height)
+  rctx.drawImage(canvas, 0, 0, canvas.width, nuevoAlto, 0, 0, canvas.width, nuevoAlto)
+  return recortado
+}
+
+/** Corta un lienzo ya dibujado en páginas A4 y arma el PDF (sin fondo vacío al final). */
+export function canvasAPdfBytes(canvasOriginal: HTMLCanvasElement, fondo: string): Uint8Array {
+  const canvas = recortarCanvasAlContenido(canvasOriginal, fondo)
   const ancho = canvas.width
   const altoPagina = Math.floor((ancho * ALTO_PAGINA) / ANCHO_PAGINA)
   const paginas: PaginaJpeg[] = []
@@ -229,13 +322,28 @@ export async function seccionAPdfBytes(titulo: string, html: string): Promise<Ui
     hoja.height = altoPagina
     const ctx = hoja.getContext('2d')
     if (!ctx) throw new Error('Sin contexto de dibujo')
-    ctx.fillStyle = '#0A1A31'
+    ctx.fillStyle = fondo
     ctx.fillRect(0, 0, ancho, altoPagina)
     ctx.drawImage(canvas, 0, y, ancho, h, 0, 0, ancho, h)
     const dataUrl = hoja.toDataURL('image/jpeg', 0.92)
     paginas.push({ datos: dataUrlABytes(dataUrl), ancho, alto: altoPagina })
   }
   return construirPdfPaginas(paginas)
+}
+
+/** La sección como PDF (páginas A4 listas para leer e imprimir). */
+export async function seccionAPdfBytes(titulo: string, html: string): Promise<Uint8Array> {
+  const canvas = await documentoACanvas(titulo, html)
+  return canvasAPdfBytes(canvas, '#0A1A31')
+}
+
+/**
+ * Un documento HTML ya armado (el ministerial de «Exportar PDF») como PDF
+ * por páginas sobre fondo blanco, listo para compartir o imprimir.
+ */
+export async function documentoHtmlAPdfBytes(documentoHtml: string): Promise<Uint8Array> {
+  const canvas = await htmlDocumentoACanvas(documentoHtml, '#FFFFFF')
+  return canvasAPdfBytes(canvas, '#FFFFFF')
 }
 
 const ANCHO_PAGINA = 595.28

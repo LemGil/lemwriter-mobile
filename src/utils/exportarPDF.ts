@@ -1,5 +1,7 @@
 import { Proyecto } from '../types'
 import { Seccion } from '../components/Editor'
+import { Capacitor } from '@capacitor/core'
+import { compartirArchivo, documentoHtmlAPdfBytes } from '../lib/compartirImagen'
 
 interface OpcionesExportacionPDF {
   tamanoLetra: 'normal' | 'grande' | 'pulpito'
@@ -531,12 +533,41 @@ function aNumeroRomano(num: number): string {
   return resultado || 'I'
 }
 
-export function imprimirOExportarPDF(
+/**
+ * Envuelve el HTML ministerial completo en un <div> autocontenido para
+ * poder dibujarlo en un lienzo: conserva su <style> y su cuerpo, con el
+ * papel blanco y la tipografía del documento aplicados al contenedor.
+ */
+export function documentoMinisterialParaDibujo(htmlCompleto: string): string {
+  const estilo = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(htmlCompleto)?.[1] ?? ''
+  const cuerpo = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(htmlCompleto)?.[1] ?? htmlCompleto
+  return (
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:1080px;background:#FFFFFF;color:#1A1A1A;` +
+    `font-family:'Crimson Pro',Georgia,serif;padding:64px 72px;box-sizing:border-box;">` +
+    `<style>${estilo}</style>${cuerpo}</div>`
+  )
+}
+
+export async function imprimirOExportarPDF(
   proyecto: { title: string; type?: string; updated_at?: string },
   secciones: Seccion[],
   opciones: OpcionesExportacionPDF
-): void {
+): Promise<void> {
   const html = generarHTMLMinisterial(proyecto, secciones, opciones)
+
+  // En la app, el WebView no sabe imprimir desde un marco oculto (el botón
+  // no hacía nada): se genera el PDF del mismo documento y se abre la hoja
+  // de compartir del sistema, desde donde se imprime o se guarda. En
+  // web/PC se sigue imprimiendo como siempre.
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const bytes = await documentoHtmlAPdfBytes(documentoMinisterialParaDibujo(html))
+      await compartirArchivo({ titulo: proyecto.title, extension: 'pdf', bytes })
+    } catch (e) {
+      console.warn('Error generating PDF in the app:', e)
+    }
+    return
+  }
 
   // Crear iframe oculto para impresión/guardar como PDF directo
   const iframe = document.createElement('iframe')
